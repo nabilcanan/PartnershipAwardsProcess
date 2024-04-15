@@ -9,7 +9,7 @@ from Customers.Sanmina import sanmina_logic
 from Customers.SMTC import smtc_logic
 import tkinter as tk
 from tkinter import Canvas  # , simpledialog <--- add this line if you want to add a password and uncomment
-from gif.gif_logic import *
+# from gif.gif_logic import *
 
 
 def button_click(customer_name):
@@ -43,7 +43,7 @@ def open_customer_module(customer_name):
 
 def main():
     root = tk.Tk()
-    root.title("Partnership TTI Program")
+    root.title("Partnership Award Program")
     root.geometry("1000x550")
 
     # # Add a button for opening the PowerPoint instructions
@@ -63,7 +63,7 @@ def main():
     canvas.pack(fill="both", expand=True)
 
     # Title above the buttons
-    canvas.create_text(500, 50, text="TTI Shared Data", font=('Roboto', 32), fill=text_color)
+    canvas.create_text(500, 50, text="Partnership Award Process", font=('Roboto', 32), fill=text_color)
 
     # Customers list
     customers = ["Benchmark", "Creation", "Jabil",
