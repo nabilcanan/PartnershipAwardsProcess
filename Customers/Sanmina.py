@@ -53,55 +53,131 @@ def open_and_process_files(parent_window):
         messagebox.showwarning("Warning", "You need to select both files!")
         return
 
-    process_first_file(file_path_1)
-    process_second_file(file_path_2)
+    try:
+        workbook, sheet = process_first_file(file_path_1)
+        process_second_file(workbook, sheet, file_path_2)
+    except Exception as e:
+        messagebox.showerror("Error", "An error occurred during processing: " + str(e))
+
 
 
 def process_first_file(file_path):
+    workbook = load_workbook(file_path, data_only=False)
+    sheet = workbook.active
+
+    # Initialize dictionary to map column headers to their respective columns
+    header_column_map = {}
+    for column in range(1, sheet.max_column + 1):
+        header_value = sheet.cell(row=2, column=column).value  # Check headers in row 2
+        if header_value:
+            header_column_map[header_value] = column
+
+    # Check for required headers and map them to column letters
+    required_headers = ['Awarded EAU', 'Award Price']
+    if not all(header in header_column_map for header in required_headers):
+        missing = [header for header in required_headers if header not in header_column_map]
+        messagebox.showerror("Error", f"Missing required columns: {', '.join(missing)}")
+        return
+
+    # Determine columns for new headers and formulas
+    new_column_index = sheet.max_column + 1
+    ext_award_value_column = get_column_letter(new_column_index)
+    sheet.cell(row=2, column=new_column_index).value = 'Ext Award Value'
+
+    award_conf_column = get_column_letter(new_column_index + 1)
+    sheet.cell(row=2, column=new_column_index + 1).value = 'Award Conf'
+
+    eau_column = get_column_letter(new_column_index + 2)
+    sheet.cell(row=2, column=new_column_index + 2).value = 'EAU'
+
+    award_price_column_ba = get_column_letter(new_column_index + 3)
+    sheet.cell(row=2, column=new_column_index + 3).value = 'Award Price'
+
+    conf_cost_column = get_column_letter(new_column_index + 4)
+    sheet.cell(row=2, column=new_column_index + 4).value = 'Conf Cost'  # New blank column 'Conf Cost'
+
+    ext_cost_column = get_column_letter(new_column_index + 5)
+    sheet.cell(row=2, column=new_column_index + 5).value = 'Ext Cost'
+
+    award_moq_column = get_column_letter(new_column_index + 6)
+    sheet.cell(row=2, column=new_column_index + 6).value = 'Award MOQ'
+
+    comment_cost_column = get_column_letter(new_column_index + 7)
+    sheet.cell(row=2, column=new_column_index + 7).value = 'Cost Comment'  # New blank column 'Cost Comment'
+
+    new_business_column = get_column_letter(new_column_index + 8)
+    sheet.cell(row=2, column=new_column_index + 8).value = 'New Business'  # New blank column 'Conf Cost'
+
+    # Applying formulas
+    awarded_eau_column = get_column_letter(header_column_map['Awarded EAU'])
+    award_price_column = get_column_letter(header_column_map['Award Price'])
+    moq_column = get_column_letter(header_column_map['Minimum Order Qty'])
+
+    for row in range(3, sheet.max_row + 1):
+        sheet[ext_award_value_column + str(row)].value = f'={awarded_eau_column}{row}*{award_price_column}{row}'
+        sheet[eau_column + str(row)].value = f'={awarded_eau_column}{row}'  # Copy 'Awarded EAU' into 'EAU'
+        sheet[award_price_column_ba + str(
+            row)].value = f'={award_price_column}{row}'  # Copy 'Award Price' into new 'Award Price'
+        sheet[ext_cost_column + str(
+            row)].value = f'=({award_price_column_ba}{row}-{conf_cost_column}{row})/{award_price_column_ba}{row}'
+        sheet[award_moq_column + str(row)].value = f'={moq_column}{row}'
+
+    # Adding dynamic SUBTOTAL formulas in cells AX1 and BC1
+    subtotal_column_ax = 'AX'
+    subtotal_column_bc = 'BC'
+    sheet[
+        subtotal_column_ax + '1'].value = f'=SUBTOTAL(9, {subtotal_column_ax}3:{subtotal_column_ax}{sheet.max_row})'
+    sheet[
+        subtotal_column_bc + '1'].value = f'=SUBTOTAL(9, {subtotal_column_bc}3:{subtotal_column_bc}{sheet.max_row})'
+
+    # Adding the formula in cell BD1
+    formula_column_bd = 'BD'
+    sheet[formula_column_bd + '1'].value = f'=({subtotal_column_ax}1-{subtotal_column_bc}1)/{subtotal_column_ax}1'
+
+    # Save the workbook
+    final_save_file_path = filedialog.asksaveasfilename(defaultextension=".xlsx",
+                                                        filetypes=[("Excel files", "*.xlsx")])
+    if final_save_file_path:
+        workbook.save(final_save_file_path)
+        messagebox.showinfo("Success", "File processed and saved successfully!")
+    else:
+        messagebox.showwarning("Cancelled", "Final file save cancelled.")
+
+        return workbook, sheet
+
+
+def process_second_file(first_file_path, second_file_path):
     try:
-        # Load the workbook and get the active sheet
-        workbook = load_workbook(file_path, data_only=False)
-        sheet = workbook.active
+        # Load the data from both Excel files
+        df_first = pd.read_excel(first_file_path)
+        df_second = pd.read_excel(second_file_path)
 
-        # Initialize dictionary to map column headers to their respective columns
-        header_column_map = {}
-        for column in range(1, sheet.max_column + 1):
-            header_value = sheet.cell(row=2, column=column).value  # Check headers in row 2
-            if header_value:
-                header_column_map[header_value] = column
+        # Specify columns to merge from the second file
+        columns_to_merge = [
+            'PSoft Part', 'Quoted Mfg', 'Quoted Part', 'Part Class', 'Last Ship Resale', 'Last Ship Date',
+            'Last Ship GP', '12 Mo CPN Sales', 'Backlog Resale', 'Cust Backlog Value', 'Sager Stock', 'Stock Type',
+            'On POs', 'Sager Min', 'Sager Mult', 'Factory LT', 'Avg Cost', 'Vol1 Cost', 'Vol2 Cost', 'Best Book',
+            'Best Contract', 'Sager NCNR', 'Last PO Price', 'SND Cost', 'SND Quote', 'SND Exp Date', 'SND Cust ID',
+            'VPC Cost', 'VPC Quote', 'VPC Exp Date', 'VPC MOQ', 'VPC TYPE', 'TIR MOQ', 'VPC Cust ID', 'Design Reg #',
+            'Reg #', 'Last Ship CPN', 'Last Ship Cust ID', 'Backlog CPN', 'Backlog Entry', 'Backlog Cust ID'
+        ]
 
-        # Check for required headers and map them to column letters
-        required_headers = ['Awarded EAU', 'Award Price']
-        if not all(header in header_column_map for header in required_headers):
-            missing = [header for header in required_headers if header not in header_column_map]
-            messagebox.showerror("Error", f"Missing required columns: {', '.join(missing)}")
+        # Check if all required columns are in the second file
+        missing_columns = [col for col in columns_to_merge if col not in df_second.columns]
+        if missing_columns:
+            messagebox.showerror("Error", "Missing columns in the second file: " + ", ".join(missing_columns))
             return
 
-        # Determine the column for the new 'Ext Award Value' formula
-        # This should be the next column after the last used column in row 2
-        new_column_index = sheet.max_column + 1
-        ext_award_value_column = get_column_letter(new_column_index)
+        # Perform the merge on 'MPN'
+        merged_data = pd.merge(df_first, df_second[columns_to_merge + ['MPN']], on='MPN', how='left')
 
-        # Add header for new formula column in row 2
-        sheet.cell(row=2, column=new_column_index).value = 'Ext Award Value'
-
-        # Insert formula in the new column starting from row 3
-        awarded_eau_column = get_column_letter(header_column_map['Awarded EAU'])
-        award_price_column = get_column_letter(header_column_map['Award Price'])
-        for row in range(3, sheet.max_row + 1):
-            sheet[ext_award_value_column + str(row)].value = f'={awarded_eau_column}{row}*{award_price_column}{row}'
-
-        # Save the workbook
-        final_save_file_path = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel files", "*.xlsx")])
-        if final_save_file_path:
-            workbook.save(final_save_file_path)
-            messagebox.showinfo("Success", "File processed and saved successfully!")
+        # Save the merged data to a new Excel file
+        save_file_path = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel files", "*.xlsx")])
+        if save_file_path:
+            merged_data.to_excel(save_file_path, index=False)
+            messagebox.showinfo("Success", "Data merged and saved successfully!")
         else:
-            messagebox.showwarning("Cancelled", "Final file save cancelled.")
+            messagebox.showwarning("Cancelled", "File save cancelled.")
+
     except Exception as e:
         messagebox.showerror("Error", "An error occurred: " + str(e))
-
-
-def process_second_file(file_path):
-    # Placeholder for secondary file processing
-    pass

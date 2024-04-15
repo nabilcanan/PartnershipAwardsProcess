@@ -46,9 +46,9 @@ def main():
     root.title("Partnership TTI Program")
     root.geometry("1000x550")
 
-    # Add a button for opening the PowerPoint instructions
-    instructions_button = tk.Button(root, text="Open Instructions", command=open_powerpoint)
-    instructions_button.pack()
+    # # Add a button for opening the PowerPoint instructions
+    # instructions_button = tk.Button(root, text="Open Instructions", command=open_powerpoint)
+    # instructions_button.pack()
 
     # Modern color scheme
     bg_color = '#2c3e50'  # Dark blue
@@ -102,12 +102,12 @@ def main():
         canvas.tag_bind(customer, '<Leave>', lambda e, tag=tag_rect: on_leave(tag))
 
         button_y += 60  # Increment y position for the next button, this adds spacing
-
-        # Load GIF frames and create the animation
-        gif_frames = load_gif('gif/component.gif')
-        canvas.create_image(0, root.winfo_height() - gif_frames[0].height(), anchor='nw', tags='animation',
-                            image=gif_frames[0])
-        update_animation(canvas, gif_frames, 0, 10, 1)  # Start animation
+        #
+        # # Load GIF frames and create the animation
+        # gif_frames = load_gif('gif/component.gif')
+        # canvas.create_image(0, root.winfo_height() - gif_frames[0].height(), anchor='nw', tags='animation',
+        #                     image=gif_frames[0])
+        # update_animation(canvas, gif_frames, 0, 10, 1)  # Start animation
 
     root.mainloop()
 
