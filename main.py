@@ -9,6 +9,8 @@ from Customers.Sanmina import sanmina_logic
 from Customers.SMTC import smtc_logic
 import tkinter as tk
 from tkinter import Canvas  # , simpledialog <--- add this line if you want to add a password and uncomment
+
+
 # from gif.gif_logic import *
 
 
@@ -20,15 +22,11 @@ def button_click(customer_name):
 def open_customer_module(customer_name):
     # Define a dictionary mapping customer names to their corresponding functions
     customer_logic = {
+        "Sanmina": sanmina_logic,
         "Benchmark": benchmark_logic,
-        "Creation": creation_logic,
-        "Flextronics": flextronics_logic,
         "Jabil": jabil_logic,
-        "Kimball": kimball_logic,
         "Neotech": neotech_logic,
         "Plexus": plexus_logic,
-        "Sanmina": sanmina_logic,
-        "SMTC": smtc_logic,
         # "Kauffman Engineering": kauffman_logic not yet used for any function or logic
     }
 
@@ -66,8 +64,7 @@ def main():
     canvas.create_text(500, 50, text="Partnership Award Process", font=('Roboto', 32), fill=text_color)
 
     # Customers list
-    customers = ["Benchmark", "Creation", "Jabil",
-                 "Kimball", "Neotech", "Plexus", "Sanmina"]
+    customers = ["Sanmina", "Neotech", "Jabil", "Plexus", "Benchmark"]
 
     # Functionality for button hover effect
     def on_enter(tag):
