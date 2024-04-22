@@ -162,8 +162,8 @@ def process_first_file(sheet):
 
     # Applying formulas
     try:
-        awarded_eau_column = get_column_letter(header_column_map['Quoted Net Demand'])
-        award_price_column = get_column_letter(header_column_map['Unit Price'])
+        awarded_eau_column = get_column_letter(header_column_map['Quoted Net Demand'])  # In other words its EAU for NEOTECH
+        award_price_column = get_column_letter(header_column_map['Unit Price']) 
         moq_column = get_column_letter(header_column_map['MOQ'])
     except Exception as e:
         print("Error getting column letter:", e)
@@ -200,14 +200,15 @@ def process_first_file(sheet):
         print("Error getting column letter for BV or CE:", e)
         return None
 
-    print("BV Column Index:", bv_column_index)
+    print("BV Column Index:", bv_column_index)  # Declaring BV column to apply formula
     print("CE Column Index:", ce_column_index)
     # Column letter for which we need to apply the subtotal
     column_letter = 'CA'
     data_start_row = 3  # This might be different depending on your specific layout
     # Find the index of the column (Note: This is not strictly necessary if you know it's 'CA')
     # Determine the last row with data in column 'CA'
-    bv_column_index = 74  # Column BV
+    bv_column_index = 74  # Column BV this is where we implement the new formulas associated with their columns
+    # The max row declaration is what we use to determine how many cells we will use
     max_row = sheet.max_row
     column_index = column_index_from_string(column_letter)
     cb_column_index = get_column_letter(

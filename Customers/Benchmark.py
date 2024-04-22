@@ -169,20 +169,20 @@ def benchmark_logic():
                      fg=text_color)
     label.pack(pady=20)
 
-    # Instructions for program
-    instructions = ("Instructions:\n"
-                    "1. Select the file containing the CPNs.\n"
-                    "2. Choose the Latest Contract File for Benchmark.\n"
-                    "3. Select the Benchmark Backlog File.\n"
-                    "4. Pick the Benchmark Sales History File.\n"
-                    "5. Remember to SAVE your final file upon completion.")
-
-    label = tk.Label(benchmark_window, text=instructions, font=("Verdana", 20), bg=bg_color, fg=text_color)
-    label.pack(pady=20)
-
-    # Button to open the file dialog
-    open_file_btn = tk.Button(benchmark_window, text="Select Excel Files", command=open_and_process_file,
-                              bg=button_color, fg=button_text_color, font=("Verdana", 16))
-    open_file_btn.pack(pady=10)
+    # # Instructions for program
+    # instructions = ("Instructions:\n"
+    #                 "1. Select the file containing the CPNs.\n"
+    #                 "2. Choose the Latest Contract File for Benchmark.\n"
+    #                 "3. Select the Benchmark Backlog File.\n"
+    #                 "4. Pick the Benchmark Sales History File.\n"
+    #                 "5. Remember to SAVE your final file upon completion.")
+    #
+    # label = tk.Label(benchmark_window, text=instructions, font=("Verdana", 20), bg=bg_color, fg=text_color)
+    # label.pack(pady=20)
+    #
+    # # Button to open the file dialog
+    # open_file_btn = tk.Button(benchmark_window, text="Select Excel Files", command=open_and_process_file,
+    #                           bg=button_color, fg=button_text_color, font=("Verdana", 16))
+    # open_file_btn.pack(pady=10)
 
     press_action()

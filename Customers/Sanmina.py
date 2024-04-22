@@ -187,13 +187,13 @@ def process_first_file(sheet):
 
     # Set formulas in AX, BC, and BD as previously defined
     sheet.cell(row=1, column=ax_column_index).value = f'=SUBTOTAL(9, AX3:AX{sheet.max_row})'
-    sheet.cell(row=1, column=bc_column_index).value = f'=SUBTOTAL(9, BC3:BC395)'
+    sheet.cell(row=1, column=bc_column_index).value = f'=SUBTOTAL(9, BC3:BC{sheet.max_row})'
     sheet.cell(row=1, column=bd_column_index).value = f'=(AX1-BC1)/AX1'
 
 
 def merge_columns(sheet1, working_copy, columns_to_merge):
     # Define the fill color and text wrapping for new column headers
-    fill = PatternFill(start_color='FCD5B4', end_color='FCD5B4', fill_type='solid')
+    # fill = PatternFill(start_color='FCD5B4', end_color='FCD5B4', fill_type='solid')
     wrap_text = Alignment(wrap_text=True)
 
     # Identify the MPN column in both sheets
@@ -239,7 +239,7 @@ def merge_columns(sheet1, working_copy, columns_to_merge):
     for header in columns_to_merge:
         cell = sheet1.cell(row=2, column=next_column)
         cell.value = header
-        cell.fill = fill
+        # cell.fill = fill
         cell.alignment = wrap_text
         next_column += 1
 
