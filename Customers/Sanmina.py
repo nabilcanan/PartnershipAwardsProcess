@@ -94,10 +94,10 @@ def process_and_merge_files(parent_window):
 
         # After all merging and processing are complete
         column_formats = {
-            'AX': '"$"#,##0.00',  # Currency values with two decimal places
-            'BA': '"$"#,##0.00',  # Currency values with two decimal places
-            'BB': '"$"#,##0.00',  # Currency values with two decimal places
-            'BC': '"$"#,##0.00',  # Currency values with two decimal places
+            'AX': '"$"#,##0.0000',  # Currency values with two decimal places
+            # 'BA': '"$"#,##0.0000',  # Currency values with two decimal places
+            # 'BB': '"$"#,##0.0000',  # Currency values with two decimal places
+            # 'BC': '"$"#,##0.0000',  # Currency values with two decimal places
             'BD': '0.00%'  # Percentage format
         }
         format_columns(sheet, column_formats)
@@ -136,41 +136,50 @@ def process_first_file(sheet):
 
     # List of new headers and their respective formula if applicable
     new_headers = [
-        ('Ext Award Value', None),
-        ('Award Conf', None),
-        ('EAU', None),
-        ('Award Price', None),
-        ('Conf Cost', None),
-        ('Ext Cost', None),  # Update to use specific columns BB and AZ
-        ('Award Margin', None),  # Update formula location
-        ('Award MOQ', None),  # Update to pull from AC
-        ('Cost Comment', None),
-        ('New Business', None)
+        ('', None),  # 0
+        ('Revised Resale', None),  # 0
+        ('Revised Margin', None),  # 1
+        ('Revised MOQ', None),  # 2
+        ('Flag for Increase Review Next Qtr', None),  # 3
+        ('Ext Award Value', None),  # 4
+        ('Award Conf', None),  # 5
+        ('EAU', None),  # 6
+        ('Award Price', None),  # 7
+        ('Conf Cost', None),  # 8
+        ('Ext Cost', None),  # Update to use specific columns BB and AZ # 9
+        ('Award Margin', None),  # Update formula location # 10
+        ('Award MOQ', None),  # Update to pull from AC # 11
+        ('Cost Comment', None),  # 12
+        ('New Business', None)  # 13
     ]
 
     for i, (header, formula) in enumerate(new_headers):
         col_letter = get_column_letter(new_column_index + i)
         cell = sheet.cell(row=2, column=new_column_index + i)
         cell.value = header
-        cell.fill = fill
-        cell.alignment = wrap_text
-        if header == 'Conf Cost':
-            for row in range(3, sheet.max_row + 1):  # Start processing from row 3 as row 2 contains headers
-                sheet.cell(row=row, column=new_column_index + i).value = f'=BY{row}'  # Set Conf Cost = BY row value
+
+        # Skip setting fill color and alignment for specific headers
+        if header not in ['', 'Revised Resale', 'Revised Margin', 'Revised MOQ', 'Flag for Increase Review Next Qtr']:
+            cell.fill = fill
+            cell.alignment = wrap_text
+            if header == 'Conf Cost':
+                for row in range(3, sheet.max_row + 1):  # Start processing from row 3 as row 2 contains headers
+                    sheet.cell(row=row, column=new_column_index + i).value = f'=BY{row}'  # Set Conf Cost = BY row value
 
     # Applying formulas
     awarded_eau_column = get_column_letter(header_column_map['Awarded EAU'])
     award_price_column = get_column_letter(header_column_map['Award Price'])
     moq_column = get_column_letter(header_column_map['Minimum Order Qty'])
-    award_margin_column = get_column_letter(new_column_index + 7)  # Adjust the index for 'Award Margin'
+    # award_margin_column = get_column_letter(new_column_index + 7)  # Adjust the index for 'Award Margin'
 
     for row in range(3, sheet.max_row + 1):  # Start processing from row 3 as row 2 contains headers
-        sheet.cell(row=row, column=new_column_index).value = f'={awarded_eau_column}{row}*{award_price_column}{row}'
-        sheet.cell(row=row, column=new_column_index + 2).value = f'={awarded_eau_column}{row}'
-        sheet.cell(row=row, column=new_column_index + 3).value = f'={award_price_column}{row}'
-        sheet.cell(row=row, column=new_column_index + 5).value = f'=BB{row}*AZ{row}'  # Ext Cost formula
-        sheet.cell(row=row, column=new_column_index + 6).value = f'=(BA{row}-BB{row})/BA{row}'  # Award Margin formula
-        sheet.cell(row=row, column=new_column_index + 7).value = f'=AC{row}'  # Award MOQ formula
+        sheet.cell(row=row,
+                   column=new_column_index + 5).value = f'={awarded_eau_column}{row}*{award_price_column}{row}'  # Ext Award Value
+        sheet.cell(row=row, column=new_column_index + 7).value = f'={awarded_eau_column}{row}'  # EAU Column
+        sheet.cell(row=row, column=new_column_index + 8).value = f'={award_price_column}{row}'
+        sheet.cell(row=row, column=new_column_index + 10).value = f'=BB{row}*AZ{row}'  # Ext Cost formula
+        sheet.cell(row=row, column=new_column_index + 11).value = f'=(BA{row}-BB{row})/BA{row}'  # Award Margin formula
+        sheet.cell(row=row, column=new_column_index + 12).value = f'={moq_column}{row}'  # Award MOQ formula
 
     # Apply filters to the entire header row
     sheet.auto_filter.ref = f"A2:{get_column_letter(sheet.max_column)}2"
@@ -266,4 +275,3 @@ def format_columns(sheet, column_formats):
         for row in range(3, sheet.max_row + 1):
             cell = sheet.cell(row=row, column=openpyxl.utils.column_index_from_string(col_letter))
             cell.number_format = format_style
-

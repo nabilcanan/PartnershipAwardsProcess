@@ -61,7 +61,7 @@ def main():
     canvas.pack(fill="both", expand=True)
 
     # Title above the buttons
-    canvas.create_text(500, 50, text="Partnership Award Process", font=('Roboto', 32), fill=text_color)
+    canvas.create_text(500, 50, text="Partnership Award Validation Process", font=('Roboto', 32), fill=text_color)
 
     # Customers list
     customers = ["Sanmina", "Neotech", "Jabil", "Plexus", "Benchmark"]

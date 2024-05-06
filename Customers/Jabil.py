@@ -1,221 +1,296 @@
 import tkinter as tk
+from copy import copy
 from tkinter import filedialog, messagebox
-import pandas as pd
+import openpyxl
 from openpyxl import load_workbook
+from openpyxl.styles import PatternFill, Alignment
 from openpyxl.utils import get_column_letter
-from Customers.jabil_query import new_function
 
 
 def press_action():
-    print("hello partnership")
-    pass
+    print("Hello partnership")
 
-
-# Jabil
-# Completed
 
 def jabil_logic():
-    # Create a new Toplevel window for Benchmark
-    jabil_window = tk.Toplevel()
-    jabil_window.title("Jabil Module")
-    jabil_window.geometry("800x500")
+    root = tk.Tk()
+    root.title("Jabil Module")
+    root.geometry("800x500")
 
-    def open_and_process_file():
-        # Read the first file containing CPNs
-        first_file_path = filedialog.askopenfilename(title="Select CPN File",
-                                                     filetypes=[("Excel files", "*.xlsx;*.xls")])
-        if first_file_path:
-            df_first = pd.read_excel(first_file_path)  # Load the file into a DataFrame
-            if 'CPN' in df_first.columns:
-                # Remove duplicates based on the 'CPN' column
-                df_first = df_first.drop_duplicates(subset=['CPN'])
-                # Continue processing with other files if the first file is processed successfully
-                if process_second_file(df_first) and process_third_file(df_first) and process_fourth_file(df_first) \
-                        and process_fifth_file(df_first):
-                    # Save the final processed DataFrame
-                    save_file(df_first)
-            else:
-                # Error message if 'CPN' column is not found
-                messagebox.showerror("Error", "CPN column not found in the first file.")
-        else:
-            # Warning message if the file selection is cancelled
-            messagebox.showwarning("Cancelled", "First file open cancelled.")
+    # Color scheme
+    bg_color = '#3b5998'
+    text_color = '#ffffff'
+    button_color = '#8b9dc3'
+    button_text_color = '#ffffff'
 
-    def process_second_file(df_first):
-        # Open a dialog to select the second file, typically the latest contract file for Jabil
-        second_file_path = filedialog.askopenfilename(title="Select your LATEST Award File for Jabil",
-                                                      filetypes=[("Excel files", "*.xlsx;*.xls")])
-        if second_file_path:
-            # Load the file into a DataFrame without setting a header initially
-            df_second_raw = pd.read_excel(second_file_path, header=None)
+    root.configure(bg=bg_color)
 
-            # Find the row index where the desired header ('Jabil part #') is located
-            header_row_idx = None
-            for idx, row in df_second_raw.iterrows():
-                if 'JPN' in row.values:
-                    header_row_idx = idx
-                    break
-
-            if header_row_idx is not None and isinstance(header_row_idx, int):
-                # Re-read the file with the correct header row
-                df_second = pd.read_excel(second_file_path, header=int(header_row_idx))
-                # Proceed with processing if 'JPN' column is found
-                if 'JPN' in df_second.columns:
-                    df_first['On Contract'] = df_first['CPN'].isin(df_second['JPN']).map(
-                        {True: 'Y', False: ''})
-                    return True
-                else:
-                    messagebox.showerror("Error", "JPN column not found in the second file.")
-                    return False
-            else:
-                messagebox.showerror("Error", "Header row with 'JPN' not found in the file.")
-                return False
-        else:
-            messagebox.showwarning("Cancelled", "Second file open cancelled.")
-            return False
-
-    def process_third_file(df_first):
-        # Open a dialog to select the third file, typically the Jabil Backlog File
-        third_file_path = filedialog.askopenfilename(title="Select your Jabil Backlog File",
-                                                     filetypes=[("Excel files", "*.xlsx;*.xls")])
-        if third_file_path:
-            # Load the third file into a DataFrame
-            df_third = pd.read_excel(third_file_path)
-            # Check if the required columns are in the third file
-            if 'Backlog CPN' in df_third.columns and 'Scheduled Arrival' in df_third.columns:
-                # Group the data by 'Backlog CPN' and get the latest (max) 'Scheduled Arrival' for each CPN
-                latest_arrivals = df_third.groupby('Backlog CPN')['Scheduled Arrival'].max()
-                # Map the latest arrival dates to the corresponding CPNs in the first DataFrame
-                df_first['Last Ship Date'] = df_first['CPN'].map(latest_arrivals)
-                return True
-            else:
-                # Display an error message if the required columns are not found
-                messagebox.showerror("Error", "Required columns not found in the third file.")
-                return False
-        else:
-            # Display a warning message if the file selection is cancelled
-            messagebox.showwarning("Cancelled", "Third file open cancelled.")
-            return False
-
-    def process_fourth_file(df_first):
-        # Open a dialog to select the fourth file, typically the Jabil Sales History File
-        fourth_file_path = filedialog.askopenfilename(title="Select your Jabil Sales History File",
-                                                      filetypes=[("Excel files", "*.xlsx;*.xls")])
-        if fourth_file_path:
-            # Load the fourth file into a DataFrame
-            df_fourth = pd.read_excel(fourth_file_path)
-            # Check if the required columns are in the fourth file
-            if 'Last Ship CPN' in df_fourth.columns and 'Last Ship Date' in df_fourth.columns:
-                # Group the data by 'Last Ship CPN' and get the latest (max) 'Last Ship Date' for each CPN
-                latest_ship_dates = df_fourth.groupby('Last Ship CPN')['Last Ship Date'].max()
-                # Update 'Last Ship Date' in the first DataFrame with the latest ship date where it is missing
-                df_first['Last Ship Date'] = df_first.apply(
-                    lambda row: row['Last Ship Date'] if pd.notna(row['Last Ship Date']) else latest_ship_dates.get(
-                        row['CPN']), axis=1)
-                return True
-            else:
-                # Display an error message if the required columns are not found
-                messagebox.showerror("Error", "Required columns not found in the fourth file.")
-                return False
-        else:
-            # Display a warning message if the file selection is cancelled
-            messagebox.showwarning("Cancelled", "Fourth file open cancelled.")
-            return False
-
-    def save_file(df_first):
-        save_file_path = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel files", "*.xlsx")])
-        if save_file_path:
-            # Save DataFrame to an Excel file
-            df_first.to_excel(save_file_path, index=False)
-
-            # Open the saved Excel file and adjust column widths
-            workbook = load_workbook(save_file_path)
-            worksheet = workbook.active
-
-            # Auto-adjust the width of Column A (or any other column as needed)
-            column_widths = []
-            for row in worksheet.iter_rows(min_row=2, max_col=1, max_row=worksheet.max_row):
-                for cell in row:
-                    try:
-                        # Get the length of the cell value
-                        column_widths.append(len(str(cell.value)))
-                    except StopIteration:  # StopIteration should work here to raise an error
-                        "You messed up"
-                        pass
-
-            # Set the width of Column A to the width of the longest entry
-            if column_widths:
-                max_width = max(column_widths)
-                worksheet.column_dimensions[get_column_letter(1)].width = max_width
-
-            # Save the changes
-            workbook.save(save_file_path)
-            messagebox.showinfo("Success", "Files processed, formatted, and saved successfully!")
-        else:
-            messagebox.showwarning("Cancelled", "File save cancelled.")
-
-    def process_fifth_file(df_first):
-        # Open a dialog to select the "Forecast Query" file
-        forecast_query_path = filedialog.askopenfilename(title="Select Forecast Query File",
-                                                         filetypes=[("Excel files", "*.xlsx;*.xls")])
-        if forecast_query_path:
-            # Load the "Forecast Query" file into a DataFrame
-            df_forecast_query = pd.read_excel(forecast_query_path)
-
-            # Check if 'Prod Alias' and 'Send to Planning' columns are present
-            if 'Prod Alias' in df_forecast_query.columns and 'Send to Planning' in df_forecast_query.columns:
-                # Filter the DataFrame to get only rows where 'Send to Planning' is 'Y'
-                valid_forecast_query = df_forecast_query[df_forecast_query['Send to Planning'] == 'Y']
-
-                # Create a set of CPNs from the filtered DataFrame
-                planning_cpn_set = set(valid_forecast_query['Prod Alias'])
-
-                # Update 'On Contract' column and print CPNs meeting the criteria
-                print("CPNs meeting criteria and updated with 'Y' in 'On Contract':")
-                for cpn in df_first['CPN']:
-                    if cpn in planning_cpn_set:
-                        df_first.loc[df_first['CPN'] == cpn, 'On Contract'] = 'Y'
-                        print(cpn)
-                return True
-            else:
-                messagebox.showerror("Error", "Required columns not found in the Forecast Query file.")
-                return False
-        else:
-            messagebox.showwarning("Cancelled", "Forecast Query file open cancelled.")
-            return False
-
-    # Modern color scheme
-    bg_color = '#3b5998'  # A shade of blue
-    text_color = '#ffffff'  # White for readability
-    button_color = '#8b9dc3'  # Lighter shade of blue for the button
-    button_text_color = '#ffffff'  # White text on the button
-
-    # Apply background color
-    jabil_window.configure(bg=bg_color)
-
-    # Add content specific to the Benchmark module
-    label = tk.Label(jabil_window, text="Welcome Partnership Member", font=("Verdana", 24), bg=bg_color,
-                     fg=text_color)
+    label = tk.Label(root, text="Welcome Partnership Member", font=("Verdana", 24), bg=bg_color, fg=text_color)
     label.pack(pady=20)
 
-    # Instructions for program
     instructions = ("Instructions:\n"
-                    "1. Select the file containing the CPNs.\n"
-                    "2. Choose the Latest Contract File for Jabil.\n"
-                    "3. Select the Jabil Backlog File.\n"
-                    "4. Pick the Jabil Sales History File.\n"
-                    "5. Remember to SAVE your final file upon completion.")
+                    "1. Select the Award File for Jabil.\n"
+                    "2. Select the BOM file for Jabil.\n"
+                    "3. Save the final merged file.")
+    instructions_label = tk.Label(root, text=instructions, font=("Verdana", 16), bg=bg_color, fg=text_color)
+    instructions_label.pack(pady=20)
 
-    label = tk.Label(jabil_window, text=instructions, font=("Verdana", 20), bg=bg_color, fg=text_color)
-    label.pack(pady=20)
+    process_btn = tk.Button(root, text="Process and Merge Files", command=lambda: process_and_merge_files(root),
+                            bg=button_color, fg=button_text_color, font=("Verdana", 16))
+    process_btn.pack(pady=10)
 
-    # Button to open the file dialog
-    open_file_btn = tk.Button(jabil_window, text="Select Excel Files", command=open_and_process_file,
-                              bg=button_color, fg=button_text_color, font=("Verdana", 16))
-    open_file_btn.pack(pady=10)
+    root.mainloop()
 
-    run_query = tk.Button(jabil_window, text="Run Forecast Query", command=new_function,
-                          bg=button_color, fg=button_text_color, font=("Verdana", 16))
-    run_query.pack(pady=10)
 
-    press_action()
+def process_and_merge_files(parent_window):
+    columns_to_merge = [
+        'PSoft Part', 'Quoted Mfg', 'Quoted Part', 'Part Class', 'Last Ship Resale', 'Last Ship Date',
+        'Last Ship GP', '12 Mo CPN Sales', 'Backlog Resale', 'Cust Backlog Value', 'Sager Stock', 'Stock Type',
+        'On POs', 'Sager Min', 'Sager Mult', 'Factory LT', 'Avg Cost', 'Vol1 Cost', 'Vol2 Cost', 'Best Book',
+        'Best Contract', 'Sager NCNR', 'Last PO Price', 'SND Cost', 'SND Quote', 'SND Exp Date', 'SND Cust ID',
+        'VPC Cost', 'VPC Quote', 'VPC Exp Date', 'VPC MOQ', 'VPC TYPE', 'TIR MOQ', 'VPC Cust ID', 'Design Reg #',
+        'Reg #', 'Last Ship CPN', 'Last Ship Cust ID', 'Backlog CPN', 'Backlog Entry', 'Backlog Cust ID'
+    ]
+
+    initial_dir = r"C:\Users\nabil\OneDrive\Documentos\WORKFILES\awardsprocess"
+
+    file_path_1 = filedialog.askopenfilename(parent=parent_window, title="Select the first Excel file",
+                                             filetypes=[("Excel files", "*.xlsx")], initialdir=initial_dir)
+    file_path_2 = filedialog.askopenfilename(parent=parent_window, title="Select the second Excel file",
+                                             filetypes=[("Excel files", "*.xlsm")], initialdir=initial_dir)
+    if not file_path_1 or not file_path_2:
+        messagebox.showwarning("Warning", "You need to select both files!")
+        return
+
+    try:
+        # Process the first file
+        workbook = load_workbook(file_path_1, data_only=False)
+        sheet = workbook.active
+        process_first_file(sheet)
+
+        # Load the second file and add the 'Working Copy' sheet
+        workbook2 = load_workbook(file_path_2, data_only=True)
+        if 'Working Copy' in workbook2.sheetnames:
+            sheet2 = workbook2['Working Copy']
+            new_sheet = workbook.create_sheet('Working Copy')
+
+            # Copying data and style from sheet2 to new_sheet
+            for row in sheet2:
+                for cell in row:
+                    new_cell = new_sheet.cell(row=cell.row, column=cell.column, value=cell.value)
+                    if cell.has_style:  # Copy style if present
+                        new_cell.font = copy(cell.font)
+                        new_cell.border = copy(cell.border)
+                        new_cell.fill = copy(cell.fill)
+                        new_cell.number_format = cell.number_format
+                        new_cell.protection = copy(cell.protection)
+                        new_cell.alignment = copy(cell.alignment)
+
+            merge_columns(sheet, new_sheet, columns_to_merge)  # Call the merge function here
+
+        else:
+            messagebox.showwarning("Warning", "'Working Copy' sheet not found in the second file!")
+            return
+
+        # After all merging and processing are complete
+        column_formats = {
+            'AF': '"$"#,##0.00',  # Currency values with two decimal places
+            'AI': '"$"#,##0.00',  # Currency values with two decimal places
+            'AJ': '"$"#,##0.00',  # Currency values with two decimal places
+            'CA': '"$"#,##0.00',  # Currency values with two decimal places
+            'AK': '0.00%'  # Percentage format
+        }
+        format_columns(sheet, column_formats)
+
+        # Ask user for save location and file name
+        save_file_path = filedialog.asksaveasfilename(parent=parent_window, defaultextension=".xlsx",
+                                                      filetypes=[("Excel files", "*.xlsx")],
+                                                      title="Save Merged File As", initialdir=initial_dir)
+        if save_file_path:
+            workbook.save(save_file_path)
+            messagebox.showinfo("Success", "File has been processed and saved successfully!")
+
+    except Exception as e:
+        messagebox.showerror("Error", "An error occurred during processing: " + str(e))
+
+
+# This is the coloring function for this module that colors the rows, so it's similar to the original file
+def fill_alternate_rows(sheet, start_row, end_row, color):
+    columns_to_fill = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
+                       'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE']
+
+    for row in range(start_row, end_row + 1, 2):  # Start from start_row, increment by 2 until end_row
+        for col_letter in columns_to_fill:
+            cell = sheet[col_letter + str(row)]
+            cell.fill = PatternFill(start_color=color, end_color=color, fill_type='solid')
+
+
+def process_first_file(sheet):
+    # Initialize dictionary to map column headers to their respective columns
+    sheet.insert_rows(1)
+    header_column_map = {}
+    for column in range(1, sheet.max_column + 1):
+        header_value = sheet.cell(row=2, column=column).value  # Headers are in row 2, change the row value
+        if header_value:
+            header_column_map[header_value] = column
+
+    # Print the header column map to see what's in there
+    print("Header Column Map:", header_column_map)
+
+    # Print out the headers in the first workbook
+    print("Headers in the first workbook:", list(header_column_map.keys()))
+
+    # Check for required headers and map them to column letters
+    required_headers = ['Net Demand(180 Days)', 'Sourced Price', 'Sourced MOQ']
+    missing_headers = [header for header in required_headers if header not in header_column_map]
+    if missing_headers:
+        messagebox.showerror("Error", f"Missing required columns: {', '.join(missing_headers)}")
+        return None  # Exit if there are missing headers
+
+    # Determine columns for new headers and formulas
+    new_column_index = sheet.max_column + 1
+    fill = PatternFill(start_color='FCD5B4', end_color='FCD5B4', fill_type='solid')
+    wrap_text = Alignment(wrap_text=True)  # Enable text wrapping
+
+    # List of new headers and their respective formula if applicable, here we created the new columns where we wil apply data and formulas
+    new_headers = [
+        ('Ext Award Value', None),
+        ('Award Conf', None),
+        ('180 Day Net', None),
+        ('Award Price', None),
+        ('Conf Cost', None),
+        ('Award Margin', None),
+        ('Award MOQ', None),
+        ('Cost Comment', None),
+        ('New Business', None)
+    ]
+
+    for i, (header, formula) in enumerate(new_headers):
+        col_letter = get_column_letter(new_column_index + i)
+        cell = sheet.cell(row=2, column=new_column_index + i)
+        cell.value = header
+        cell.fill = fill
+        cell.alignment = wrap_text  # Apply wrap text alignment to each header cell
+        if header == 'Conf Cost':
+            for row in range(3, sheet.max_row + 1):  # Start processing from row 3 as row 2 contains headers
+                sheet.cell(row=row, column=new_column_index + i).value = f'=BP{row}'  # Set Conf Cost = BY row value
+
+    # Applying formulas
+    try:
+        awarded_eau_column = get_column_letter(
+            header_column_map['Net Demand(180 Days)'])  # In other words its EAU for Jabil
+        award_price_column = get_column_letter(header_column_map['Sourced Price'])
+        moq_column = get_column_letter(header_column_map['Sourced MOQ'])
+    except Exception as e:
+        print("Error getting column letter:", e)
+        return None
+
+    print("Awarded EAU Column:", awarded_eau_column)
+    print("Award Price Column:", award_price_column)
+    print("MOQ Column:", moq_column)
+
+    award_margin_column = get_column_letter(new_column_index + 6)  # Adjust the index for 'Award Margin'
+    print("Award Margin Column:", award_margin_column)
+    cost_comment_column_index = new_column_index + 7  # adjust this index based on actual position
+
+    for row in range(3, sheet.max_row + 1):  # Start processing from row 3 as row 2 contains headers
+        sheet.cell(row=row, column=new_column_index).value = f'={awarded_eau_column}{row}*{award_price_column}{row}'
+        sheet.cell(row=row, column=new_column_index + 2).value = f'={awarded_eau_column}{row}'
+        sheet.cell(row=row, column=new_column_index + 3).value = f'={award_price_column}{row}'
+        # sheet.cell(row=row, column=new_column_index + 5).value = f'=BZ{row}*BX{row}'  # Ext Cost formula
+        sheet.cell(row=row, column=new_column_index + 5).value = f'=(AI{row}-AJ{row})/AI{row}'  # Award Margin formula
+        sheet.cell(row=row, column=new_column_index + 6).value = f'=R{row}'  # Award MOQ formula (Changed from AK to AL)
+        sheet.cell(row=row, column=cost_comment_column_index).value = f'=BQ{row}'
+
+    # Apply filters to the entire header row
+    sheet.auto_filter.ref = f"A2:{get_column_letter(sheet.max_column)}2"
+
+    fill_alternate_rows(sheet, start_row=4, end_row=sheet.max_row, color='ADD8E6')
+
+    # Print to verify if all formulas and filters were applied correctly
+    print("Auto filter applied to:", sheet.auto_filter.ref)
+
+    # Add the SUBTOTAL formula in row 1 column AF cell with dynamic row reference
+    max_row = sheet.max_row
+    sheet.cell(row=1,
+               column=new_column_index).value = f'=SUBTOTAL(9, AF3:AF{max_row})'  # Subtotal formula above Ext Value, we don't
+    # add +1 here so this process happens right at the beginning of our column creation process
+
+    # Print to verify if all formulas and filters were applied correctly
+    print("Auto filter applied to:", sheet.auto_filter.ref)
+
+
+def merge_columns(sheet1, working_copy, columns_to_merge):
+    # Define the fill color and text wrapping for new column headers
+    # fill = PatternFill(start_color='FFFFFF', end_color='FFFFFF', fill_type='solid')
+    wrap_text = Alignment(wrap_text=True)
+
+    # Identify the MPN column in both sheets
+    mpn_column_index_sheet1 = None
+    mpn_column_index_wc = None
+
+    # Find MPN column in sheet1
+    # Used Item number in sheet 1 and matched this to CPN in working copy to pull in data
+    for col in range(1, sheet1.max_column + 1):
+        if sheet1.cell(row=2, column=col).value == 'JPN':
+            mpn_column_index_sheet1 = col
+            break
+
+    if not mpn_column_index_sheet1:
+        messagebox.showerror("Error", "MPN column not found in the main sheet.")
+        return
+
+    # Find MPN column in the Working Copy
+    for col in range(1, working_copy.max_column + 1):
+        if working_copy.cell(row=3, column=col).value == 'CPN':
+            mpn_column_index_wc = col
+            break
+
+    if not mpn_column_index_wc:
+        messagebox.showerror("Error", "MPN column not found in the 'Working Copy'.")
+        return
+
+    # Mapping MPN values to row numbers in sheet1
+    mpn_to_row = {}
+    for row in range(3, sheet1.max_row + 1):
+        mpn_value = sheet1.cell(row=row, column=mpn_column_index_sheet1).value
+        mpn_to_row[mpn_value] = row
+
+    # Mapping column headers to column indices in the Working Copy
+    wc_column_indices = {}
+    for col in range(1, working_copy.max_column + 1):
+        header = working_copy.cell(row=3, column=col).value
+        if header in columns_to_merge:
+            wc_column_indices[header] = col
+
+    # Adding new columns to sheet1 in row 2 and applying fill and text wrapping only to the headers
+    next_column = sheet1.max_column + 1
+    for header in columns_to_merge:
+        cell = sheet1.cell(row=2, column=next_column)
+        cell.value = header
+        # cell.fill = fill
+        cell.alignment = wrap_text
+        next_column += 1
+
+    # Filling the new columns with data from the 'Working Copy' based on MPN
+    for row in range(4, working_copy.max_row + 1):  # Assuming data starts from row 4 in Working Copy
+        wc_mpn_value = working_copy.cell(row=row, column=mpn_column_index_wc).value
+        if wc_mpn_value in mpn_to_row:
+            target_row = mpn_to_row[wc_mpn_value]
+            for header, col_index in wc_column_indices.items():
+                new_col = sheet1.max_column - len(columns_to_merge) + list(columns_to_merge).index(header) + 1
+                sheet1.cell(row=target_row, column=new_col).value = working_copy.cell(row=row, column=col_index).value
+
+    # Enable filters on the header row
+    sheet1.auto_filter.ref = f"A2:{sheet1.cell(row=2, column=sheet1.max_column).coordinate}"
+
+
+def format_columns(sheet, column_formats):
+    for col_letter, format_style in column_formats.items():
+        # Format the first row if the column is AX, BC, or BD
+        if col_letter in ['AF', 'AI', 'AJ', 'AK', 'CA', 'CB', 'BZ']:  # Add 'BC' and 'BD' to the condition
+            sheet.cell(row=1, column=openpyxl.utils.column_index_from_string(col_letter)).number_format = format_style
+
+        # Format the rest of the column starting from row 3
+        for row in range(3, sheet.max_row + 1):
+            cell = sheet.cell(row=row, column=openpyxl.utils.column_index_from_string(col_letter))
+            cell.number_format = format_style

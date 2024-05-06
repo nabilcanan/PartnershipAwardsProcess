@@ -163,7 +163,7 @@ def process_first_file(sheet):
     # Applying formulas
     try:
         awarded_eau_column = get_column_letter(header_column_map['Quoted Net Demand'])  # In other words its EAU for NEOTECH
-        award_price_column = get_column_letter(header_column_map['Unit Price']) 
+        award_price_column = get_column_letter(header_column_map['Unit Price'])
         moq_column = get_column_letter(header_column_map['MOQ'])
     except Exception as e:
         print("Error getting column letter:", e)
