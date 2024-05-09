@@ -1,28 +1,36 @@
-Meeting 5/6/24 On PartnershipAward Process 
+Meeting 5/6/24 On PartnershipAward Process
 
 <--------------------------------------------------------------------->
-Columns adjusted for sanmina, need to add the Conf Cost logic we discussed, 
+Columns adjusted for sanmina, need to add the Conf Cost logic we discussed,
 and adjust the new columns we created for neotech as well then jabil too
 <--------------------------------------------------------------------->
+
 
 <--------------------------------------------------------------------->
 Conf Cost Logic:
 
-1st check SND and pull over quote # in cost comment column 
-2nd check VPC and pull over quote # in cost comment column  
-3rd check Vol1 and write 'MOQ Cost' in cost comment column 
+1st check SND and pull over quote # in cost comment column
+2nd check VPC and pull over quote # in cost comment column
+3rd check Vol1 and write 'MOQ Cost' in cost comment column
 
-Lastly if Quoted MFG = Molex, pull in 'Best Contract' cost into Conf Cost column and make that cost comment SPA
+Lastly if Quoted MFG = Molex, pull in 'Best Contract' cost into Conf Cost column and make that cost comment 'SPA'
 <--------------------------------------------------------------------->
 
+
 <--------------------------------------------------------------------->
-Ext VALUE is the only column that needs 4 decimal places 
+Ext VALUE is the only column that needs 4 decimal places
 <--------------------------------------------------------------------->
+
 
 <--------------------------------------------------------------------->
 For the award margin column, if award margin is below 6%
-highlight that value, then if the conf cost column changes, 
+highlight that value, then if the conf cost column changes,
 the award margin will go up or down. We want the cell value to become un-highlighted.
+<--------------------------------------------------------------------->
+
+<--------------------------------------------------------------------->
+Re-evaluate the Neotech files because there are extra columns and missing columns. They are not all the same awards.
+We need to make the module dynamic so everything works regardless of the columns that we have or do not have.
 <--------------------------------------------------------------------->
 
 
