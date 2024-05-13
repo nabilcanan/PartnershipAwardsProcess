@@ -26,11 +26,28 @@ Ext VALUE is the only column that needs 4 decimal places
 For the award margin column, if award margin is below 6%
 highlight that value, then if the conf cost column changes,
 the award margin will go up or down. We want the cell value to become un-highlighted.
+This is complete
 <--------------------------------------------------------------------->
+
 
 <--------------------------------------------------------------------->
 Re-evaluate the Neotech files because there are extra columns and missing columns. They are not all the same awards.
 We need to make the module dynamic so everything works regardless of the columns that we have or do not have.
+This is complete
 <--------------------------------------------------------------------->
 
+Reworking our function:
+
+Column formulas:
+
+Ext Award Value: Awarded EAU * Award Price
+Award Conf: Blank Column
+EAU: Awarded EAU (EAU Column in sheet)
+Award Price: Award Price
+Conf Cost: Logic is above
+Ext Cost: Conf Cost * EAU
+Award Margin: (Award Price - Conf Cost) / Award Price
+Award MOQ: Minimum Order Quantity Column in sheet
+Cost Comment: Blank
+New Business: Blank
 

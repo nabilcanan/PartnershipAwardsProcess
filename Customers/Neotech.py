@@ -3,8 +3,10 @@ from copy import copy
 from tkinter import filedialog, messagebox
 import openpyxl
 from openpyxl import load_workbook
-from openpyxl.styles import PatternFill, Alignment
-from openpyxl.utils import get_column_letter, column_index_from_string
+from openpyxl.styles import Alignment
+from openpyxl.utils import get_column_letter
+from openpyxl.formatting.rule import CellIsRule
+from openpyxl.styles import PatternFill
 
 
 def press_action():
@@ -86,6 +88,8 @@ def process_and_merge_files(parent_window):
                         new_cell.alignment = copy(cell.alignment)
 
             merge_columns(sheet, new_sheet, columns_to_merge)  # Call the merge function here
+            update_conf_cost(sheet)
+            apply_conditional_formatting(sheet)  # Apply conditional formatting for Award Margin
 
         else:
             messagebox.showwarning("Warning", "'Working Copy' sheet not found in the second file!")
@@ -113,118 +117,134 @@ def process_and_merge_files(parent_window):
         messagebox.showerror("Error", "An error occurred during processing: " + str(e))
 
 
+def update_conf_cost(sheet):
+    # Update the header map after any new columns are added
+    header_column_map = {sheet.cell(row=2, column=col).value: col for col in range(1, sheet.max_column + 1)}
+
+    # Check if 'Vol1 Cost' column is present
+    if 'Vol1 Cost' not in header_column_map:
+        print("Error: 'Vol1 Cost' column not found")
+        return
+
+    # Find index for 'Conf Cost' or create it if not exists
+    if 'Conf Cost' not in header_column_map:
+        conf_cost_col = sheet.max_column + 1
+        sheet.cell(row=2, column=conf_cost_col).value = 'Conf Cost'
+        sheet.cell(row=2, column=conf_cost_col).alignment = Alignment(wrap_text=True)
+        header_column_map['Conf Cost'] = conf_cost_col
+    else:
+        conf_cost_col = header_column_map['Conf Cost']
+
+    # 'Vol1 Cost' column index
+    vol1_cost_col = header_column_map['Vol1 Cost']
+
+    # Copy values from 'Vol1 Cost' to 'Conf Cost'
+    for row in range(3, sheet.max_row + 1):
+        vol1_cost_value = sheet.cell(row=row, column=vol1_cost_col).value
+        sheet.cell(row=row, column=conf_cost_col).value = vol1_cost_value
+
+
 def process_first_file(sheet):
     # Initialize dictionary to map column headers to their respective columns
-    header_column_map = {}
-    for column in range(1, sheet.max_column + 1):
-        header_value = sheet.cell(row=2, column=column).value  # Headers are in row 2
-        if header_value:
-            header_column_map[header_value] = column
+    header_column_map = {sheet.cell(row=2, column=col).value: col
+                         for col in range(1, sheet.max_column + 1) if sheet.cell(row=2, column=col).value}
 
-    # Print the header column map to see what's in there
-    print("Header Column Map:", header_column_map)
-
-    # Check for required headers and map them to column letters
+    # Ensure required headers are present
     required_headers = ['Quoted Net Demand', 'Unit Price', 'MOQ']
-    missing_headers = [header for header in required_headers if header not in header_column_map]
-    if missing_headers:
-        messagebox.showerror("Error", f"Missing required columns: {', '.join(missing_headers)}")
-        return None  # Exit if there are missing headers
+    if any(header not in header_column_map for header in required_headers):
+        missing = [header for header in required_headers if header not in header_column_map]
+        print("Error: Missing required headers", missing)
+        return
 
-    # Determine columns for new headers and formulas
-    new_column_index = sheet.max_column + 1
-    fill = PatternFill(start_color='FCD5B4', end_color='FCD5B4', fill_type='solid')
-    wrap_text = Alignment(wrap_text=True)  # Enable text wrapping
+    # Define new headers and their formulas
+    new_headers_formulas = {
+        'Revised Resale': None,
+        'Revised Margin': None,
+        'Revised MOQ': None,
+        'Flag for Increase': None,
+        'Ext Award Value': f"={get_column_letter(header_column_map['Quoted Net Demand'])}{{row}}*{get_column_letter(header_column_map['Unit Price'])}{{row}}",
+        'Award Conf': None,
+        'EAU': f"={get_column_letter(header_column_map['Quoted Net Demand'])}{{row}}",
+        'Award Price': f"={get_column_letter(header_column_map['Unit Price'])}{{row}}",
+        'Conf Cost': None,  # Assuming this will be populated later
+        'Ext Cost': None,  # To be calculated after mapping update
+        'Award Margin': None,  # To be calculated with updated formula below
+        'Award MOQ': f"={get_column_letter(header_column_map['MOQ'])}{{row}}",  # Copy from 'MOQ',
+        'Cost Comment': None,
+        'New Business': None
+    }
 
-    # List of new headers and their respective formula if applicable
-    new_headers = [
-        ('Ext Award Value', None),
-        ('Award Conf', None),
-        ('EAU', None),
-        ('Award Price', None),
-        ('Conf Cost', None),
-        ('Ext Cost', None),
-        ('Award Margin', None),
-        ('Award MOQ', None),
-        ('Cost Comment', None),
-        ('New Business', None)
-    ]
+    # Start inserting new columns from the next available column
+    start_column = sheet.max_column + 1
 
-    for i, (header, formula) in enumerate(new_headers):
-        col_letter = get_column_letter(new_column_index + i)
-        cell = sheet.cell(row=2, column=new_column_index + i)
-        cell.value = header
-        cell.fill = fill
-        cell.alignment = wrap_text
-        if header == 'Conf Cost':
-            for row in range(3, sheet.max_row + 1):  # Start processing from row 3 as row 2 contains headers
-                sheet.cell(row=row, column=new_column_index + i).value = f'=DG{row}'  # Set Conf Cost = BY row value
+    # Insert headers and apply formulas where applicable
+    for header, formula in new_headers_formulas.items():
+        col_letter = get_column_letter(start_column)
+        sheet.cell(row=2, column=start_column).value = header
 
-    # Applying formulas
-    try:
-        awarded_eau_column = get_column_letter(header_column_map['Quoted Net Demand'])  # In other words its EAU for NEOTECH
-        award_price_column = get_column_letter(header_column_map['Unit Price'])
-        moq_column = get_column_letter(header_column_map['MOQ'])
-    except Exception as e:
-        print("Error getting column letter:", e)
-        return None
+        # Set fill color based on the header name
+        if header in ['Revised Resale', 'Revised Margin', 'Revised MOQ', 'Flag for Increase']:
+            fill_color = 'FFFFFF'  # White
+        else:
+            fill_color = 'FCD5B4'  # The previous color used for other headers
 
-    print("Awarded EAU Column:", awarded_eau_column)
-    print("Award Price Column:", award_price_column)
-    print("MOQ Column:", moq_column)
+        sheet.cell(row=2, column=start_column).fill = PatternFill(start_color=fill_color, fill_type='solid')
+        sheet.cell(row=2, column=start_column).alignment = Alignment(wrap_text=True)
 
-    award_margin_column = get_column_letter(new_column_index + 6)  # Adjust the index for 'Award Margin'
-    print("Award Margin Column:", award_margin_column)
-    # cost_comment_column_index = new_column_index + 8  # adjust this index based on actual position
+        # Update the header column map immediately after adding each header
+        header_column_map[header] = start_column
 
-    for row in range(3, sheet.max_row + 1):  # Start processing from row 3 as row 2 contains headers
-        sheet.cell(row=row, column=new_column_index).value = f'={awarded_eau_column}{row}*{award_price_column}{row}'
-        sheet.cell(row=row, column=new_column_index + 2).value = f'={awarded_eau_column}{row}'
-        sheet.cell(row=row, column=new_column_index + 3).value = f'={award_price_column}{row}'
-        sheet.cell(row=row, column=new_column_index + 5).value = f'=BZ{row}*BX{row}'  # Ext Cost formula
-        sheet.cell(row=row, column=new_column_index + 6).value = f'=(BY{row}-BZ{row})/BY{row}'  # Award Margin formula
-        sheet.cell(row=row, column=new_column_index + 7).value = f'=X{row}'  # Award MOQ formula
-        # sheet.cell(row=row, column=cost_comment_column_index).value = f'=DH{row}'
+        if formula:  # Apply formulas to all rows starting from row 3
+            for row in range(3, sheet.max_row + 1):
+                sheet.cell(row=row, column=start_column).value = formula.format(row=row)
 
-    # Apply filters to the entire header row
+        start_column += 1  # Increment column for next header
+
+    # Calculate 'Ext Cost' and 'Award Margin'
+    conf_cost_column = header_column_map['Conf Cost']
+    eau_column = header_column_map['EAU']
+    award_price_column = header_column_map['Award Price']
+    ext_cost_column = header_column_map['Ext Cost']
+    award_margin_column = header_column_map['Award Margin']
+
+    for row in range(3, sheet.max_row + 1):
+        # Calculate Ext Cost if Conf Cost and EAU columns are populated
+        if conf_cost_column and eau_column:
+            sheet.cell(row=row,
+                       column=ext_cost_column).value = f"={get_column_letter(conf_cost_column)}{row}*{get_column_letter(eau_column)}{row}"
+
+        # Calculate Award Margin if Award Price and Conf Cost are populated
+        if award_price_column and conf_cost_column:
+            sheet.cell(row=row, column=award_margin_column).value = \
+                f"=({get_column_letter(award_price_column)}{row}-{get_column_letter(conf_cost_column)}{row})/{get_column_letter(award_price_column)}{row}"
+
+    # Apply subtotal formula to the 'Ext Award Value' column
+    ext_award_value_col = header_column_map['Ext Award Value']
+    last_row = sheet.max_row
+    ext_cost_col_letter = get_column_letter(ext_cost_column)
+    subtotal_formula = f"=SUBTOTAL(9, {get_column_letter(ext_award_value_col)}3:{get_column_letter(ext_award_value_col)}{last_row})"
+    sheet.cell(row=1, column=ext_award_value_col).value = subtotal_formula  # Placing the formula in the first row
+
+    # Subtotal formula for 'Ext Cost' above its header
+    subtotal_formula_ext_cost = f"=SUBTOTAL(9, {ext_cost_col_letter}3:{ext_cost_col_letter}{last_row})"
+    sheet.cell(row=1,
+               column=ext_cost_column).value = subtotal_formula_ext_cost  # Placing the formula above the column header
+
+    # Assume 'BV' and 'CA' are your actual Excel column headers or replace them accordingly
+    bv_column_letter = get_column_letter(header_column_map['Ext Award Value'])  # Replace with your actual column header
+    ca_column_letter = get_column_letter(header_column_map['Ext Cost'])
+    award_margin_column = header_column_map['Award Margin']
+
+    # Correct formula setting
+    award_margin_formula = f"=({bv_column_letter}1-{ca_column_letter}1)/{bv_column_letter}1"
+    sheet.cell(row=1, column=award_margin_column).value = award_margin_formula
+
+    # Apply filters to the header row
     sheet.auto_filter.ref = f"A2:{get_column_letter(sheet.max_column)}2"
-
-    # Print to verify if all formulas and filters were applied correctly
-    print("Auto filter applied to:", sheet.auto_filter.ref)
-
-    # Use columns BV to CE for formulas, ensure they exist and are integers
-    try:
-        bv_column_index = get_column_letter(header_column_map.get('BV', 75))  # Example for getting BV
-        ce_column_index = get_column_letter(header_column_map.get('CE', 83))  # Example for getting CE
-    except Exception as e:
-        print("Error getting column letter for BV or CE:", e)
-        return None
-
-    print("BV Column Index:", bv_column_index)  # Declaring BV column to apply formula
-    print("CE Column Index:", ce_column_index)
-    # Column letter for which we need to apply the subtotal
-    column_letter = 'CA'
-    data_start_row = 3  # This might be different depending on your specific layout
-    # Find the index of the column (Note: This is not strictly necessary if you know it's 'CA')
-    # Determine the last row with data in column 'CA'
-    bv_column_index = 74  # Column BV this is where we implement the new formulas associated with their columns
-    # The max row declaration is what we use to determine how many cells we will use
-    max_row = sheet.max_row
-    column_index = column_index_from_string(column_letter)
-    cb_column_index = get_column_letter(
-        header_column_map.get('CB', openpyxl.utils.column_index_from_string('CB')))  # Ensure 'CB' is correctly targeted
-    range_string = f'{column_letter}{data_start_row}:{column_letter}{max_row}'
-
-    # Set formulas in columns BV to CE as previously defined
-    # sheet.cell(row=1, column=openpyxl.utils.column_index_from_string(bv_column_index)).value = f'=SUBTOTAL(9, {bv_column_index}3:{bv_column_index}{sheet.max_row})'
-    sheet.cell(row=1, column=openpyxl.utils.column_index_from_string(cb_column_index)).value = f'=(BV1-CA1)/BV1'
-    sheet.cell(row=1, column=column_index).value = f'=SUBTOTAL(9, {range_string})'
-    sheet.cell(row=1, column=bv_column_index).value = f'=SUBTOTAL(9, BV3:BV{sheet.max_row})'
 
 
 def merge_columns(sheet1, working_copy, columns_to_merge):
     # Define the fill color and text wrapping for new column headers
-    # fill = PatternFill(start_color='FFFFFF', end_color='FFFFFF', fill_type='solid')
     wrap_text = Alignment(wrap_text=True)
 
     # Identify the MPN column in both sheets
@@ -232,14 +252,13 @@ def merge_columns(sheet1, working_copy, columns_to_merge):
     mpn_column_index_wc = None
 
     # Find MPN column in sheet1
-    # Used Item number in sheet 1 and matched this to CPN in working copy to pull in data
     for col in range(1, sheet1.max_column + 1):
         if sheet1.cell(row=2, column=col).value == 'PartNum':
             mpn_column_index_sheet1 = col
             break
 
     if not mpn_column_index_sheet1:
-        messagebox.showerror("Error", "MPN column not found in the main sheet.")
+        messagebox.showerror("Error", "PartNum column not found in the main sheet.")
         return
 
     # Find MPN column in the Working Copy
@@ -249,7 +268,7 @@ def merge_columns(sheet1, working_copy, columns_to_merge):
             break
 
     if not mpn_column_index_wc:
-        messagebox.showerror("Error", "MPN column not found in the 'Working Copy'.")
+        messagebox.showerror("Error", "CPN column not found in the 'Working Copy'.")
         return
 
     # Mapping MPN values to row numbers in sheet1
@@ -265,17 +284,18 @@ def merge_columns(sheet1, working_copy, columns_to_merge):
         if header in columns_to_merge:
             wc_column_indices[header] = col
 
-    # Adding new columns to sheet1 in row 2 and applying fill and text wrapping only to the headers
+        # Add new columns to sheet1 and fill them with data from the 'Working Copy'
     next_column = sheet1.max_column + 1
+    psoft_part_index = None
     for header in columns_to_merge:
         cell = sheet1.cell(row=2, column=next_column)
         cell.value = header
-        # cell.fill = fill
         cell.alignment = wrap_text
+        if header == "PSoft Part":
+            psoft_part_index = next_column
         next_column += 1
 
-    # Filling the new columns with data from the 'Working Copy' based on MPN
-    for row in range(4, working_copy.max_row + 1):  # Assuming data starts from row 4 in Working Copy
+    for row in range(4, working_copy.max_row + 1):
         wc_mpn_value = working_copy.cell(row=row, column=mpn_column_index_wc).value
         if wc_mpn_value in mpn_to_row:
             target_row = mpn_to_row[wc_mpn_value]
@@ -283,8 +303,18 @@ def merge_columns(sheet1, working_copy, columns_to_merge):
                 new_col = sheet1.max_column - len(columns_to_merge) + list(columns_to_merge).index(header) + 1
                 sheet1.cell(row=target_row, column=new_col).value = working_copy.cell(row=row, column=col_index).value
 
+    # Add 'PSID Ct' column next to 'PSoft Part' and apply COUNTIF formula
+    if psoft_part_index:
+        psid_ct_col = psoft_part_index + 1
+        sheet1.cell(row=2, column=psid_ct_col).value = 'PSID Ct'
+        sheet1.cell(row=2, column=psid_ct_col).alignment = wrap_text
+        psoft_part_col_letter = get_column_letter(psoft_part_index)
+        for row in range(3, sheet1.max_row + 1):
+            countif_formula = f"=COUNTIF({psoft_part_col_letter}:{psoft_part_col_letter}, {psoft_part_col_letter}{row})"
+            sheet1.cell(row=row, column=psid_ct_col).value = countif_formula
+
     # Enable filters on the header row
-    sheet1.auto_filter.ref = f"A2:{sheet1.cell(row=2, column=sheet1.max_column).coordinate}"
+    sheet1.auto_filter.ref = f"A2:{get_column_letter(sheet1.max_column)}2"
 
 
 def format_columns(sheet, column_formats):
@@ -297,3 +327,21 @@ def format_columns(sheet, column_formats):
         for row in range(3, sheet.max_row + 1):
             cell = sheet.cell(row=row, column=openpyxl.utils.column_index_from_string(col_letter))
             cell.number_format = format_style
+
+
+def apply_conditional_formatting(sheet):
+    # Find the column indices for 'Award Margin' and 'Conf Cost'
+    award_margin_col = None
+    conf_cost_col = None
+    for col in range(1, sheet.max_column + 1):
+        if sheet.cell(row=2, column=col).value == 'Award Margin':
+            award_margin_col = col
+        elif sheet.cell(row=2, column=col).value == 'Conf Cost':
+            conf_cost_col = col
+
+    if award_margin_col:
+        # Apply conditional formatting to highlight Award Margin values below 6% with light red
+        light_red_fill = PatternFill(start_color='FFC7CE', end_color='FFC7CE', fill_type='solid')
+        rule = CellIsRule(operator='lessThan', formula=['0.06'], stopIfTrue=True, fill=light_red_fill)
+        sheet.conditional_formatting.add(
+            f"{get_column_letter(award_margin_col)}3:{get_column_letter(award_margin_col)}{sheet.max_row}", rule)
