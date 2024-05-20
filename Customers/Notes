@@ -36,6 +36,7 @@ We need to make the module dynamic so everything works regardless of the columns
 This is complete
 <--------------------------------------------------------------------->
 
+< ------------- This is for Neotech ---------------------------------->
 Reworking our function:
 
 Column formulas:
@@ -50,4 +51,55 @@ Award Margin: (Award Price - Conf Cost) / Award Price
 Award MOQ: Minimum Order Quantity Column in sheet
 Cost Comment: Blank
 New Business: Blank
+
+< ------------- This is for Neotech ---------------------------------->
+
+< ------------- This is for Sanmina ---------------------------------->
+
+Required Columns are
+
+'Awarded EAU' column I
+'Award Price' column O
+'Minimum Order Qty' column AC
+
+Don't forget to call the new functions in like update_conf_cost and update_conditional__formatting
+when moving in entire functions into new customer
+
+< ------------- This is for Sanmina ---------------------------------->
+
+<-------------- Include these into the merge function----------------->
+ # Adding new columns to sheet1 in row 2 and applying fill and text wrapping only to the headers
+    next_column = sheet1.max_column + 1
+    psoft_part_index = None
+    for header in columns_to_merge:
+        cell = sheet1.cell(row=2, column=next_column)
+        cell.value = header
+        # cell.fill = fill
+        cell.alignment = wrap_text
+        if header == "PSoft Part": <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+            psoft_part_index = next_column<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        next_column += 1
+
+    # Filling the new columns with data from the 'Working Copy' based on MPN
+    for row in range(4, working_copy.max_row + 1):  # Assuming data starts from row 4 in Working Copy
+        wc_mpn_value = working_copy.cell(row=row, column=mpn_column_index_wc).value
+        if wc_mpn_value in mpn_to_row:
+            target_row = mpn_to_row[wc_mpn_value]
+            for header, col_index in wc_column_indices.items():
+                new_col = sheet1.max_column - len(columns_to_merge) + list(columns_to_merge).index(header) + 1
+                sheet1.cell(row=target_row, column=new_col).value = working_copy.cell(row=row, column=col_index).value
+
+    # Add 'PSID Ct' column next to 'PSoft Part' and apply COUNTIF formula <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    if psoft_part_index:<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        psid_ct_col = psoft_part_index + 1<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        sheet1.cell(row=2, column=psid_ct_col).value = 'PSID Ct'<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        sheet1.cell(row=2, column=psid_ct_col).alignment = wrap_text<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        psoft_part_col_letter = get_column_letter(psoft_part_index)<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        for row in range(3, sheet1.max_row + 1):<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+            countif_formula = f"=COUNTIF({psoft_part_col_letter}:{psoft_part_col_letter}, {psoft_part_col_letter}{row})"<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+            sheet1.cell(row=row, column=psid_ct_col).value = countif_formula<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+    # Enable filters on the header row
+    sheet1.auto_filter.ref = f"A2:{sheet1.cell(row=2, column=sheet1.max_column).coordinate}"
+ <-------------- Include these into the merge function----------------->
 

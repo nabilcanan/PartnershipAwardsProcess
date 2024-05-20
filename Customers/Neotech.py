@@ -44,13 +44,23 @@ def neotech_logic():
 
 
 def process_and_merge_files(parent_window):
+    # columns_to_merge = [
+    #     'PSoft Part', 'Quoted Mfg', 'Quoted Part', 'Part Class', 'Last Ship Resale', 'Last Ship Date',
+    #     'Last Ship GP', '12 Mo CPN Sales', 'Backlog Resale', 'Cust Backlog Value', 'Sager Stock', 'Stock Type',
+    #     'On POs', 'Sager Min', 'Sager Mult', 'Factory LT', 'Avg Cost', 'Vol1 Cost', 'Vol2 Cost', 'Best Book',
+    #     'Best Contract', 'Sager NCNR', 'Last PO Price', 'SND Cost', 'SND Quote', 'SND Exp Date', 'SND Cust ID',
+    #     'VPC Cost', 'VPC Quote', 'VPC Exp Date', 'VPC MOQ', 'VPC TYPE', 'TIR MOQ', 'VPC Cust ID', 'Design Reg #',
+    #     'Reg #', 'Last Ship CPN', 'Last Ship Cust ID', 'Backlog CPN', 'Backlog Entry', 'Backlog Cust ID'
+    # ]
+
     columns_to_merge = [
-        'PSoft Part', 'Quoted Mfg', 'Quoted Part', 'Part Class', 'Last Ship Resale', 'Last Ship Date',
-        'Last Ship GP', '12 Mo CPN Sales', 'Backlog Resale', 'Cust Backlog Value', 'Sager Stock', 'Stock Type',
-        'On POs', 'Sager Min', 'Sager Mult', 'Factory LT', 'Avg Cost', 'Vol1 Cost', 'Vol2 Cost', 'Best Book',
-        'Best Contract', 'Sager NCNR', 'Last PO Price', 'SND Cost', 'SND Quote', 'SND Exp Date', 'SND Cust ID',
-        'VPC Cost', 'VPC Quote', 'VPC Exp Date', 'VPC MOQ', 'VPC TYPE', 'TIR MOQ', 'VPC Cust ID', 'Design Reg #',
-        'Reg #', 'Last Ship CPN', 'Last Ship Cust ID', 'Backlog CPN', 'Backlog Entry', 'Backlog Cust ID'
+        'Quoted Mfg', 'Quoted Part', 'Part Class', 'PSoft Part', 'Sager Min',
+        'Sager Mult', 'Factory LT', 'Sager Stock', 'On POs', 'Avg Cost',
+        'Vol1 Cost', 'Vol2 Cost', 'Best Book', 'Best Contract', 'Sager NCNR', 'Last PO Price', 'SND Cost',
+        'SND Quote', 'SND Exp Date', 'SND Cust ID', 'VPC Cost', 'VPC Quote', 'VPC Exp Date', 'VPC MOQ',
+        'VPC TYPE', 'TIR MOQ', 'VPC Cust ID', 'Design Reg #', 'Reg #', 'Last Ship CPN',
+        'Last Ship Cust ID', 'Backlog CPN', 'Backlog Entry', 'Backlog Cust ID',
+
     ]
 
     initial_dir = r"C:\Users\nabil\OneDrive\Documentos\WORKFILES\awardsprocess"
@@ -121,12 +131,19 @@ def update_conf_cost(sheet):
     # Update the header map after any new columns are added
     header_column_map = {sheet.cell(row=2, column=col).value: col for col in range(1, sheet.max_column + 1)}
 
-    # Check if 'Vol1 Cost' column is present
-    if 'Vol1 Cost' not in header_column_map:
-        print("Error: 'Vol1 Cost' column not found")
-        return
+    # Check if required columns are present
+    required_columns = ['Vol1 Cost', 'SND Cost', 'VPC Cost', 'PSoft Part']
+    for col_name in required_columns:
+        if col_name not in header_column_map:
+            print(f"Error: '{col_name}' column not found")
+            return
 
-    # Find index for 'Conf Cost' or create it if not exists
+    vol1_cost_col = header_column_map['Vol1 Cost']
+    snd_cost_col = header_column_map['SND Cost']
+    vpc_cost_col = header_column_map['VPC Cost']
+    psoft_part_col = header_column_map['PSoft Part']
+
+    # Find or create 'Conf Cost' column
     if 'Conf Cost' not in header_column_map:
         conf_cost_col = sheet.max_column + 1
         sheet.cell(row=2, column=conf_cost_col).value = 'Conf Cost'
@@ -135,13 +152,30 @@ def update_conf_cost(sheet):
     else:
         conf_cost_col = header_column_map['Conf Cost']
 
-    # 'Vol1 Cost' column index
-    vol1_cost_col = header_column_map['Vol1 Cost']
+    # Dictionary to store part numbers and their respective Conf Cost values
+    part_cost_map = {}
 
-    # Copy values from 'Vol1 Cost' to 'Conf Cost'
+    # Populate the part_cost_map with values from SND Cost, VPC Cost, and Vol1 Cost
     for row in range(3, sheet.max_row + 1):
+        part_number = sheet.cell(row=row, column=psoft_part_col).value
+        snd_cost_value = sheet.cell(row=row, column=snd_cost_col).value
+        vpc_cost_value = sheet.cell(row=row, column=vpc_cost_col).value
         vol1_cost_value = sheet.cell(row=row, column=vol1_cost_col).value
-        sheet.cell(row=row, column=conf_cost_col).value = vol1_cost_value
+
+        if snd_cost_value is not None:
+            part_cost_map[part_number] = snd_cost_value
+        elif vpc_cost_value is not None:
+            part_cost_map[part_number] = vpc_cost_value
+        elif vol1_cost_value is not None:
+            part_cost_map[part_number] = vol1_cost_value
+
+    # Apply the calculated Conf Cost values to the appropriate rows
+    for row in range(3, sheet.max_row + 1):
+        part_number = sheet.cell(row=row, column=psoft_part_col).value
+        conf_cost_value = part_cost_map.get(part_number)
+        sheet.cell(row=row, column=conf_cost_col).value = conf_cost_value
+
+    print("Conf Cost has been updated based on SND Cost, VPC Cost, and Vol1 Cost.")
 
 
 def process_first_file(sheet):
