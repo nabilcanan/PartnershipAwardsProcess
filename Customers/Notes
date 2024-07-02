@@ -55,6 +55,7 @@ New Business: Blank
 < ------------- This is for Neotech ---------------------------------->
 
 < ------------- This is for Sanmina ---------------------------------->
+Sanmina will be doing another award in the middle of June, so we just need to double check the function by then and we are fine
 
 Required Columns are
 
@@ -101,5 +102,6 @@ when moving in entire functions into new customer
 
     # Enable filters on the header row
     sheet1.auto_filter.ref = f"A2:{sheet1.cell(row=2, column=sheet1.max_column).coordinate}"
+
  <-------------- Include these into the merge function----------------->
 

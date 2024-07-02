@@ -30,9 +30,9 @@ def neotech_logic():
     label.pack(pady=20)
 
     instructions = ("Instructions:\n"
-                    "1. Select the Award File for Sanmina.\n"
-                    "2. Select the BOM file for Sanmina.\n"
-                    "3. Save the final merged file.")
+                    "1. Select the Award File for Neotech.\n"
+                    "2. Select the BOM file for Neotech.\n"
+                    "3. Save the final file.")
     instructions_label = tk.Label(root, text=instructions, font=("Verdana", 16), bg=bg_color, fg=text_color)
     instructions_label.pack(pady=20)
 
@@ -109,7 +109,7 @@ def process_and_merge_files(parent_window):
         column_formats = {
             'BV': '"$"#,##0.00',  # Currency values with two decimal places
             'BY': '"$"#,##0.00',  # Currency values with two decimal places
-            'BZ': '"$"#,##0.00',  # Currency values with two decimal places
+            'BZ': '"$"#,##0.0000',  # Currency values with two decimal places
             'CA': '"$"#,##0.00',  # Currency values with two decimal places
             'CB': '0.00%'  # Percentage format
         }
@@ -277,6 +277,13 @@ def process_first_file(sheet):
     sheet.auto_filter.ref = f"A2:{get_column_letter(sheet.max_column)}2"
 
 
+"""
+This merge_columns function makes us take the BOM costed file and bring in the columns to merge we declared 
+above and brings them in the way we organized them prior. Once they are brought in we also added the PSID Ct 
+column that is an existing formula in other programs. 
+"""
+
+
 def merge_columns(sheet1, working_copy, columns_to_merge):
     # Define the fill color and text wrapping for new column headers
     wrap_text = Alignment(wrap_text=True)
@@ -339,6 +346,7 @@ def merge_columns(sheet1, working_copy, columns_to_merge):
 
     # Add 'PSID Ct' column next to 'PSoft Part' and apply COUNTIF formula
     if psoft_part_index:
+        sheet1.insert_cols(psoft_part_index + 1)  # Insert new column so the sager min columns doesnt go missing
         psid_ct_col = psoft_part_index + 1
         sheet1.cell(row=2, column=psid_ct_col).value = 'PSID Ct'
         sheet1.cell(row=2, column=psid_ct_col).alignment = wrap_text

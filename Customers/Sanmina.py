@@ -225,7 +225,7 @@ def process_first_file(sheet):
         'Conf Cost': None,  # Assuming this will be populated later
         'Ext Cost': None,  # To be calculated after mapping update
         'Award Margin': None,  # To be calculated with updated formula below
-        'Award MOQ': f"={get_column_letter(header_column_map['Minimum Order Qty'])}{{row}}",  # Copy from 'MOQ',
+        'Award MOQ': f"={get_column_letter(header_column_map['Minimum Order Qty'])}{{row}}",  # Copy from 'Minimum Order Qty',
         'Cost Comment': None,
         'New Business': None
     }
@@ -365,6 +365,7 @@ def merge_columns(sheet1, working_copy, columns_to_merge):
 
     # Add 'PSID Ct' column next to 'PSoft Part' and apply COUNTIF formula
     if psoft_part_index:
+        sheet1.insert_cols(psoft_part_index + 1)  # Insert new column so the sager min columns doesnt go missing
         psid_ct_col = psoft_part_index + 1
         sheet1.cell(row=2, column=psid_ct_col).value = 'PSID Ct'
         sheet1.cell(row=2, column=psid_ct_col).alignment = wrap_text
