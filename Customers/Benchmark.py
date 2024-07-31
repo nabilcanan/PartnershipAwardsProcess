@@ -1,188 +1,405 @@
 import tkinter as tk
+from copy import copy
 from tkinter import filedialog, messagebox
-import pandas as pd
+import openpyxl
 from openpyxl import load_workbook
+from openpyxl.formatting.rule import CellIsRule
+from openpyxl.styles import PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 
 
-def press_action():
-    print("hello partnership")
-    pass
-
-
-# Benchmark
-# Complete
-
-
 def benchmark_logic():
-    # Create a new Toplevel window for Benchmark
-    benchmark_window = tk.Toplevel()
-    benchmark_window.title("Benchmark Module")
-    benchmark_window.geometry("800x500")
+    root = tk.Tk()
+    root.title("Benchmark Module")
+    root.geometry("800x500")
 
-    def open_and_process_file():
-        # Read the first file containing CPNs
-        first_file_path = filedialog.askopenfilename(title="Select CPN File",
-                                                     filetypes=[("Excel files", "*.xlsx;*.xls")])
-        if first_file_path:
-            df_first = pd.read_excel(first_file_path)  # Load the file into a DataFrame
-            if 'CPN' in df_first.columns:
-                # Remove duplicates based on the 'CPN' column
-                df_first = df_first.drop_duplicates(subset=['CPN'])
-                # Continue processing with other files if the first file is processed successfully
-                if process_second_file(df_first) and process_third_file(df_first) and process_fourth_file(df_first):
-                    # Save the final processed DataFrame
-                    save_file(df_first)
-            else:
-                # Error message if 'CPN' column is not found
-                messagebox.showerror("Error", "CPN column not found in the first file.")
-        else:
-            # Warning message if the file selection is cancelled
-            messagebox.showwarning("Cancelled", "First file open cancelled.")
+    # Color scheme
+    bg_color = '#3b5998'
+    text_color = '#ffffff'
+    button_color = '#8b9dc3'
+    button_text_color = '#ffffff'
 
-    def process_second_file(df_first):
-        # Open a dialog to select the second file, typically the latest contract file for Benchmark
-        second_file_path = filedialog.askopenfilename(title="Select your LATEST Contract File for Benchmark",
-                                                      filetypes=[("Excel files", "*.xlsx;*.xls")])
-        if second_file_path:
-            # Load the file into a DataFrame without setting a header initially
-            df_second_raw = pd.read_excel(second_file_path, header=None)
+    root.configure(bg=bg_color)
 
-            # Find the row index where the desired header ('Benchmark part #') is located this will iterate though
-            # any headers from that dataframe
-            header_row_idx = None
-            for idx, row in df_second_raw.iterrows():
-                if 'Benchmark P/N' in row.values:
-                    header_row_idx = idx
-                    break
-
-            if header_row_idx is not None and isinstance(header_row_idx, int):
-                # Re-read the file with the correct header row
-                df_second = pd.read_excel(second_file_path, header=int(header_row_idx))
-                # Proceed with processing if 'Benchmark P/N' column is found
-                if 'Benchmark P/N' in df_second.columns:
-                    df_first['On Contract'] = df_first['CPN'].isin(df_second['Benchmark P/N']).map(
-                        {True: 'Y', False: ''})
-                    return True
-                else:
-                    messagebox.showerror("Error", "Benchmark P/N column not found in the second file.")
-                    return False
-            else:
-                messagebox.showerror("Error", "Header row with 'Benchmark P/N' not found in the file.")
-                return False
-        else:
-            messagebox.showwarning("Cancelled", "Second file open cancelled.")
-            return False
-
-    def process_third_file(df_first):
-        # Open a dialog to select the third file, typically the Benchmark Backlog File
-        third_file_path = filedialog.askopenfilename(title="Select your Benchmark Backlog File",
-                                                     filetypes=[("Excel files", "*.xlsx;*.xls")])
-        if third_file_path:
-            # Load the third file into a DataFrame
-            df_third = pd.read_excel(third_file_path)
-            # Check if the required columns are in the third file
-            if 'Backlog CPN' in df_third.columns and 'Scheduled Arrival' in df_third.columns:
-                # Group the data by 'Backlog CPN' and get the latest (max) 'Scheduled Arrival' for each CPN
-                latest_arrivals = df_third.groupby('Backlog CPN')['Scheduled Arrival'].max()
-                # Map the latest arrival dates to the corresponding CPNs in the first DataFrame
-                df_first['Last Ship Date'] = df_first['CPN'].map(latest_arrivals)
-                return True
-            else:
-                # Display an error message if the required columns are not found
-                messagebox.showerror("Error", "Required columns not found in the third file.")
-                return False
-        else:
-            # Display a warning message if the file selection is cancelled
-            messagebox.showwarning("Cancelled", "Third file open cancelled.")
-            return False
-
-    def process_fourth_file(df_first):
-        # Open a dialog to select the fourth file, typically the benchmark Sales History File
-        fourth_file_path = filedialog.askopenfilename(title="Select your Benchmark Sales History File",
-                                                      filetypes=[("Excel files", "*.xlsx;*.xls")])
-        if fourth_file_path:
-            # Load the fourth file into a DataFrame
-            df_fourth = pd.read_excel(fourth_file_path)
-            # Check if the required columns are in the fourth file
-            if 'Last Ship CPN' in df_fourth.columns and 'Last Ship Date' in df_fourth.columns:
-                # Group the data by 'Last Ship CPN' and get the latest (max) 'Last Ship Date' for each CPN
-                latest_ship_dates = df_fourth.groupby('Last Ship CPN')['Last Ship Date'].max()
-                # Update 'Last Ship Date' in the first DataFrame with the latest ship date where it is missing
-                df_first['Last Ship Date'] = df_first.apply(
-                    lambda row: row['Last Ship Date'] if pd.notna(row['Last Ship Date']) else latest_ship_dates.get(
-                        row['CPN']), axis=1)
-                return True
-            else:
-                # Display an error message if the required columns are not found
-                messagebox.showerror("Error", "Required columns not found in the fourth file.")
-                return False
-        else:
-            # Display a warning message if the file selection is cancelled
-            messagebox.showwarning("Cancelled", "Fourth file open cancelled.")
-            return False
-
-    def save_file(df_first):
-        save_file_path = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel files", "*.xlsx")])
-        if save_file_path:
-            # Save DataFrame to an Excel file
-            df_first.to_excel(save_file_path, index=False)
-
-            # Open the saved Excel file and adjust column widths
-            workbook = load_workbook(save_file_path)
-            worksheet = workbook.active
-
-            # Auto-adjust the width of Column A (or any other column as needed)
-            column_widths = []
-            for row in worksheet.iter_rows(min_row=2, max_col=1, max_row=worksheet.max_row):
-                for cell in row:
-                    try:
-                        # Get the length of the cell value, right now we are doing cell A
-                        column_widths.append(len(str(cell.value)))
-                    except StopIteration:  # StopIteration should work here to raise an error
-                        "You messed up"
-                        pass
-
-            # Set the width of Column A to the width of the longest entry
-            if column_widths:
-                max_width = max(column_widths)
-                worksheet.column_dimensions[get_column_letter(1)].width = max_width
-
-            # Save the changes
-            workbook.save(save_file_path)
-            messagebox.showinfo("Success", "Files processed, formatted, and saved successfully!")
-        else:
-            messagebox.showwarning("Cancelled", "File save cancelled.")
-
-    # Modern color scheme
-    bg_color = '#3b5998'  # A shade of blue
-    text_color = '#ffffff'  # White for readability
-    button_color = '#8b9dc3'  # Lighter shade of blue for the button
-    button_text_color = '#ffffff'  # White text on the button
-    # This is the color scheme for the entire window that we will go with, copied over to each customer
-
-    # Apply background color
-    benchmark_window.configure(bg=bg_color)
-
-    # Add content specific to the Benchmark module
-    label = tk.Label(benchmark_window, text="Welcome Partnership Member", font=("Verdana", 24), bg=bg_color,
-                     fg=text_color)
+    label = tk.Label(root, text="Welcome Partnership Member", font=("Verdana", 24), bg=bg_color, fg=text_color)
     label.pack(pady=20)
 
-    # # Instructions for program
-    # instructions = ("Instructions:\n"
-    #                 "1. Select the file containing the CPNs.\n"
-    #                 "2. Choose the Latest Contract File for Benchmark.\n"
-    #                 "3. Select the Benchmark Backlog File.\n"
-    #                 "4. Pick the Benchmark Sales History File.\n"
-    #                 "5. Remember to SAVE your final file upon completion.")
-    #
-    # label = tk.Label(benchmark_window, text=instructions, font=("Verdana", 20), bg=bg_color, fg=text_color)
-    # label.pack(pady=20)
-    #
-    # # Button to open the file dialog
-    # open_file_btn = tk.Button(benchmark_window, text="Select Excel Files", command=open_and_process_file,
-    #                           bg=button_color, fg=button_text_color, font=("Verdana", 16))
-    # open_file_btn.pack(pady=10)
+    instructions = ("Instructions:\n"
+                    "1. Select the Award File for Benchmark.\n"
+                    "2. Select the BOM file for Benchmark.\n"
+                    "3. Save the final merged file.")
+    instructions_label = tk.Label(root, text=instructions, font=("Verdana", 16), bg=bg_color, fg=text_color)
+    instructions_label.pack(pady=20)
 
-    press_action()
+    process_btn = tk.Button(root, text="Process and Merge Files", command=lambda: process_and_merge_files(root),
+                            bg=button_color, fg=button_text_color, font=("Verdana", 16))
+    process_btn.pack(pady=10)
+
+    root.mainloop()
+
+
+def process_and_merge_files(parent_window):
+
+    columns_to_merge = [
+        'Quoted Mfg', 'Quoted Part', 'Part Class', 'PSoft Part', 'Sager Min',
+        'Sager Mult', 'Factory LT', 'Sager Stock', 'On POs', 'Avg Cost',
+        'Vol1 Cost', 'Vol2 Cost', 'Best Book', 'Best Contract', 'Sager NCNR', 'Last PO Price', 'SND Cost',
+        'SND Quote', 'SND Exp Date', 'SND Cust ID', 'VPC Cost', 'VPC Quote', 'VPC Exp Date', 'VPC MOQ',
+        'VPC TYPE', 'TIR MOQ', 'VPC Cust ID', 'Design Reg #', 'Reg #', 'Last Ship CPN',
+        'Last Ship Cust ID', 'Backlog CPN', 'Backlog Entry', 'Backlog Cust ID', 'Last Ship Resale', 'Last Ship GP',
+        '12 Mo CPN Sales', 'Backlog Resale', 'Cust Backlog Value',
+
+    ]
+
+    initial_dir = r"C:\Users\nabil\OneDrive\Documentos\WORKFILES\awardsprocess"
+
+    file_path_1 = filedialog.askopenfilename(parent=parent_window, title="Select the first Excel file",
+                                             filetypes=[("Excel files", "*.xlsx")], initialdir=initial_dir)
+    file_path_2 = filedialog.askopenfilename(parent=parent_window, title="Select the second Excel file",
+                                             filetypes=[("Excel files", "*.xlsm")], initialdir=initial_dir)
+    if not file_path_1 or not file_path_2:
+        messagebox.showwarning("Warning", "You need to select both files!")
+        return
+
+    try:
+        # Process the first file
+        workbook = load_workbook(file_path_1, data_only=False)
+        sheet = workbook.active
+        process_first_file(sheet)
+
+        # Load the second file and add the 'Working Copy' sheet
+        workbook2 = load_workbook(file_path_2, data_only=True)
+        if 'Working Copy' in workbook2.sheetnames:
+            sheet2 = workbook2['Working Copy']
+            new_sheet = workbook.create_sheet('Working Copy')
+
+            # Copying data and style from sheet2 to new_sheet
+            for row in sheet2:
+                for cell in row:
+                    new_cell = new_sheet.cell(row=cell.row, column=cell.column, value=cell.value)
+                    if cell.has_style:  # Copy style if present
+                        new_cell.font = copy(cell.font)
+                        new_cell.border = copy(cell.border)
+                        new_cell.fill = copy(cell.fill)
+                        new_cell.number_format = cell.number_format
+                        new_cell.protection = copy(cell.protection)
+                        new_cell.alignment = copy(cell.alignment)
+
+            '''
+            Call these in everytime we bring in new functions into a different customer ↓↓↓↓↓↓↓↓↓
+            '''
+
+            merge_columns(sheet, new_sheet, columns_to_merge)  # Call the merge function here
+            update_conf_cost(sheet)  # This will update the conf cost column
+            apply_conditional_formatting(sheet)  # Apply conditional formatting for Award Margin
+
+        else:
+            messagebox.showwarning("Warning", "'Working Copy' sheet not found in the second file!")
+            return
+
+        # After all merging and processing are complete
+        column_formats = {
+            'AB': '"$"#,##0.0000',  # Currency values with two decimal places
+            'AE': '"$"#,##0.0000',  # Currency values with two decimal places
+            # 'BA': '"$"#,##0.0000',  # Currency values with two decimal places
+            # 'BB': '"$"#,##0.0000',  # Currency values with two decimal places
+            # 'BC': '"$"#,##0.0000',  # Currency values with two decimal places
+            'AH': '0.00%'  # Percentage format
+        }
+        format_columns(sheet, column_formats)
+
+        # Ask user for save location and file name
+        save_file_path = filedialog.asksaveasfilename(parent=parent_window, defaultextension=".xlsx",
+                                                      filetypes=[("Excel files", "*.xlsx")],
+                                                      title="Save Merged File As", initialdir=initial_dir)
+        if save_file_path:
+            workbook.save(save_file_path)
+            messagebox.showinfo("Success", "File has been processed and saved successfully!")
+
+    except Exception as e:
+        messagebox.showerror("Error", "An error occurred during processing: " + str(e))
+
+
+def update_conf_cost(sheet):
+    # Update the header map after any new columns are added
+    header_column_map = {sheet.cell(row=2, column=col).value: col for col in range(1, sheet.max_column + 1)}
+
+    print("Header column map:", header_column_map)
+
+    # Check if required columns are present
+    required_columns = ['Vol1 Cost', 'SND Cost', 'VPC Cost', 'PSoft Part']
+    for col_name in required_columns:
+        if col_name not in header_column_map:
+            print(f"Error: '{col_name}' column not found")
+            return
+
+    vol1_cost_col = header_column_map['Vol1 Cost']
+    snd_cost_col = header_column_map['SND Cost']
+    vpc_cost_col = header_column_map['VPC Cost']
+    psoft_part_col = header_column_map['PSoft Part']
+
+    print("Vol1 Cost column:", vol1_cost_col)
+    print("SND Cost column:", snd_cost_col)
+    print("VPC Cost column:", vpc_cost_col)
+    print("PSoft Part column:", psoft_part_col)
+
+    # Find or create 'Conf Cost' column
+    if 'Conf Cost' not in header_column_map:
+        conf_cost_col = sheet.max_column + 1
+        sheet.cell(row=2, column=conf_cost_col).value = 'Conf Cost'
+        sheet.cell(row=2, column=conf_cost_col).alignment = Alignment(wrap_text=True)
+        header_column_map['Conf Cost'] = conf_cost_col
+    else:
+        conf_cost_col = header_column_map['Conf Cost']
+
+    print("Conf Cost column:", conf_cost_col)
+
+    # Dictionary to store part numbers and their respective Conf Cost values
+    part_cost_map = {}
+
+    # Populate the part_cost_map with values from SND Cost, VPC Cost, and Vol1 Cost
+    for row in range(3, sheet.max_row + 1):
+        part_number = sheet.cell(row=row, column=psoft_part_col).value
+        snd_cost_value = sheet.cell(row=row, column=snd_cost_col).value
+        vpc_cost_value = sheet.cell(row=row, column=vpc_cost_col).value
+        vol1_cost_value = sheet.cell(row=row, column=vol1_cost_col).value
+
+        if part_number is not None:
+            print(
+                f"Row {row} - Part Number: {part_number}, SND Cost: {snd_cost_value}, VPC Cost: {vpc_cost_value}, Vol1 Cost: {vol1_cost_value}")
+
+        if snd_cost_value is not None:
+            part_cost_map[part_number] = snd_cost_value
+        elif vpc_cost_value is not None:
+            part_cost_map[part_number] = vpc_cost_value
+        elif vol1_cost_value is not None:
+            part_cost_map[part_number] = vol1_cost_value
+
+    print("Part cost map:", part_cost_map)
+
+    # Apply the calculated Conf Cost values to the appropriate rows
+    for row in range(3, sheet.max_row + 1):
+        part_number = sheet.cell(row=row, column=psoft_part_col).value
+        conf_cost_value = part_cost_map.get(part_number)
+        sheet.cell(row=row, column=conf_cost_col).value = conf_cost_value
+
+        if part_number is not None:
+            print(f"Row {row} - Part Number: {part_number}, Conf Cost: {conf_cost_value}")
+
+    print("Conf Cost has been updated based on SND Cost, VPC Cost, and Vol1 Cost.")
+
+
+def process_first_file(sheet):
+    # Initialize dictionary to map column headers to their respective columns
+    header_column_map = {sheet.cell(row=2, column=col).value: col
+                         for col in range(1, sheet.max_column + 1) if sheet.cell(row=2, column=col).value}
+
+    # Ensure required headers are present
+    required_headers = ['EAU', 'Final Price (USD)', 'MIN QTY']
+    if any(header not in header_column_map for header in required_headers):
+        missing = [header for header in required_headers if header not in header_column_map]
+        print("Error: Missing required headers", missing)
+        return
+
+    # Define new headers and their formulas
+    new_headers_formulas = {
+        'Revised Resale': None,
+        'Revised Margin': None,
+        'Revised MOQ': None,
+        'Flag for Increase': None,
+        'Ext Award Value': f"={get_column_letter(header_column_map['EAU'])}{{row}}*{get_column_letter(header_column_map['Final Price (USD)'])}{{row}}",
+        'Award Conf': None,
+        'EAU': f"={get_column_letter(header_column_map['EAU'])}{{row}}",
+        'Award Price': f"={get_column_letter(header_column_map['Final Price (USD)'])}{{row}}",
+        'Conf Cost': None,  # Assuming this will be populated later
+        'Ext Cost': None,  # To be calculated after mapping update
+        'Award Margin': None,  # To be calculated with updated formula below
+        'Award MOQ': f"={get_column_letter(header_column_map['MIN QTY'])}{{row}}",
+        # Copy from 'Minimum Order Qty',
+        'Cost Comment': None,
+        'New Business': None
+    }
+
+    # Start inserting new columns from the next available column
+    start_column = sheet.max_column + 1
+
+    # Insert headers and apply formulas where applicable
+    for header, formula in new_headers_formulas.items():
+        col_letter = get_column_letter(start_column)
+        sheet.cell(row=2, column=start_column).value = header
+
+        # Set fill color based on the header name
+        if header in ['Revised Resale', 'Revised Margin', 'Revised MOQ', 'Flag for Increase']:
+            fill_color = 'FFFFFF'  # White
+        else:
+            fill_color = 'FCD5B4'  # The previous color used for other headers
+
+        sheet.cell(row=2, column=start_column).fill = PatternFill(start_color=fill_color, fill_type='solid')
+        sheet.cell(row=2, column=start_column).alignment = Alignment(wrap_text=True)
+
+        # Update the header column map immediately after adding each header
+        header_column_map[header] = start_column
+
+        if formula:  # Apply formulas to all rows starting from row 3
+            for row in range(3, sheet.max_row + 1):
+                sheet.cell(row=row, column=start_column).value = formula.format(row=row)
+
+        start_column += 1  # Increment column for next header
+
+    # Calculate 'Ext Cost' and 'Award Margin'
+    conf_cost_column = header_column_map['Conf Cost']
+    eau_column = header_column_map['EAU']
+    award_price_column = header_column_map['Award Price']
+    ext_cost_column = header_column_map['Ext Cost']
+    award_margin_column = header_column_map['Award Margin']
+
+    for row in range(3, sheet.max_row + 1):
+        # Calculate Ext Cost if Conf Cost and EAU columns are populated
+        if conf_cost_column and eau_column:
+            sheet.cell(row=row,
+                       column=ext_cost_column).value = f"={get_column_letter(conf_cost_column)}{row}*{get_column_letter(eau_column)}{row}"
+
+        # Calculate Award Margin if Award Price and Conf Cost are populated
+        if award_price_column and conf_cost_column:
+            sheet.cell(row=row, column=award_margin_column).value = \
+                f"=({get_column_letter(award_price_column)}{row}-{get_column_letter(conf_cost_column)}{row})/{get_column_letter(award_price_column)}{row}"
+
+    # Apply subtotal formula to the 'Ext Award Value' column
+    ext_award_value_col = header_column_map['Ext Award Value']
+    last_row = sheet.max_row
+    ext_cost_col_letter = get_column_letter(ext_cost_column)
+    subtotal_formula = f"=SUBTOTAL(9, {get_column_letter(ext_award_value_col)}3:{get_column_letter(ext_award_value_col)}{last_row})"
+    sheet.cell(row=1, column=ext_award_value_col).value = subtotal_formula  # Placing the formula in the first row
+
+    # Subtotal formula for 'Ext Cost' above its header
+    subtotal_formula_ext_cost = f"=SUBTOTAL(9, {ext_cost_col_letter}3:{ext_cost_col_letter}{last_row})"
+    sheet.cell(row=1,
+               column=ext_cost_column).value = subtotal_formula_ext_cost  # Placing the formula above the column header
+
+    # Assume 'BV' and 'CA' are your actual Excel column headers or replace them accordingly
+    bv_column_letter = get_column_letter(header_column_map['Ext Award Value'])  # Replace with your actual column header
+    ca_column_letter = get_column_letter(header_column_map['Ext Cost'])
+    award_margin_column = header_column_map['Award Margin']
+
+    # Correct formula setting
+    award_margin_formula = f"=({bv_column_letter}1-{ca_column_letter}1)/{bv_column_letter}1"
+    sheet.cell(row=1, column=award_margin_column).value = award_margin_formula
+
+    # Apply filters to the header row
+    sheet.auto_filter.ref = f"A2:{get_column_letter(sheet.max_column)}2"
+
+
+def merge_columns(sheet1, working_copy, columns_to_merge):
+    # Define the fill color and text wrapping for new column headers
+    # fill = PatternFill(start_color='FCD5B4', end_color='FCD5B4', fill_type='solid')
+    wrap_text = Alignment(wrap_text=True)
+
+    # Identify the MPN column in both sheets
+    mpn_column_index_sheet1 = None
+    mpn_column_index_wc = None
+
+    # Find MPN column in sheet1
+    # Used Item number in sheet 1 and matched this to CPN in working copy to pull in data
+    for col in range(1, sheet1.max_column + 1):
+        if sheet1.cell(row=2, column=col).value == 'Benchmark P/N':
+            mpn_column_index_sheet1 = col
+            break
+
+    if not mpn_column_index_sheet1:
+        messagebox.showerror("Error", "MPN column not found in the main sheet.")
+        return
+
+    # Find MPN column in the Working Copy
+    for col in range(1, working_copy.max_column + 1):
+        if working_copy.cell(row=3, column=col).value == 'CPN':
+            mpn_column_index_wc = col
+            break
+
+    if not mpn_column_index_wc:
+        messagebox.showerror("Error", "MPN column not found in the 'Working Copy'.")
+        return
+
+    # Mapping MPN values to row numbers in sheet1
+    mpn_to_row = {}
+    for row in range(3, sheet1.max_row + 1):
+        mpn_value = sheet1.cell(row=row, column=mpn_column_index_sheet1).value
+        mpn_to_row[mpn_value] = row
+
+    # Mapping column headers to column indices in the Working Copy
+    wc_column_indices = {}
+    for col in range(1, working_copy.max_column + 1):
+        header = working_copy.cell(row=3, column=col).value
+        if header in columns_to_merge:
+            wc_column_indices[header] = col
+
+    # Adding new columns to sheet1 in row 2 and applying fill and text wrapping only to the headers
+    next_column = sheet1.max_column + 1
+    psoft_part_index = None
+    for header in columns_to_merge:
+        cell = sheet1.cell(row=2, column=next_column)
+        cell.value = header
+        # cell.fill = fill
+        cell.alignment = wrap_text
+        if header == "PSoft Part":
+            psoft_part_index = next_column
+        next_column += 1
+
+    # Filling the new columns with data from the 'Working Copy' based on MPN
+    for row in range(4, working_copy.max_row + 1):  # Assuming data starts from row 4 in Working Copy
+        wc_mpn_value = working_copy.cell(row=row, column=mpn_column_index_wc).value
+        if wc_mpn_value in mpn_to_row:
+            target_row = mpn_to_row[wc_mpn_value]
+            for header, col_index in wc_column_indices.items():
+                new_col = sheet1.max_column - len(columns_to_merge) + list(columns_to_merge).index(header) + 1
+                sheet1.cell(row=target_row, column=new_col).value = working_copy.cell(row=row, column=col_index).value
+
+    # Add 'PSID Ct' column next to 'PSoft Part' and apply COUNTIF formula
+    if psoft_part_index:
+        sheet1.insert_cols(psoft_part_index + 1)  # Insert new column so the sager min columns doesnt go missing
+        psid_ct_col = psoft_part_index + 1
+        sheet1.cell(row=2, column=psid_ct_col).value = 'PSID Ct'
+        sheet1.cell(row=2, column=psid_ct_col).alignment = wrap_text
+        psoft_part_col_letter = get_column_letter(psoft_part_index)
+        for row in range(3, sheet1.max_row + 1):
+            countif_formula = f"=COUNTIF({psoft_part_col_letter}:{psoft_part_col_letter}, {psoft_part_col_letter}{row})"
+            sheet1.cell(row=row, column=psid_ct_col).value = countif_formula
+
+    # Enable filters on the header row
+    sheet1.auto_filter.ref = f"A2:{sheet1.cell(row=2, column=sheet1.max_column).coordinate}"
+
+
+def format_columns(sheet, column_formats):
+    for col_letter, format_style in column_formats.items():
+        # Format the rest of the column starting from row 3
+        for row in range(3, sheet.max_row + 1):
+            cell = sheet.cell(row=row, column=openpyxl.utils.column_index_from_string(col_letter))
+            cell.number_format = format_style
+
+    # Additional formatting for the cell above 'Award Margin'
+    award_margin_col = None
+    for col in range(1, sheet.max_column + 1):
+        if sheet.cell(row=2, column=col).value == 'Award Margin':
+            award_margin_col = col
+            break
+
+    if award_margin_col:
+        cell = sheet.cell(row=1, column=award_margin_col)
+        cell.number_format = '0.00%'  # Set the format to percentage for the cell above 'Award Margin'
+
+
+def apply_conditional_formatting(sheet):
+    # Find the column indices for 'Award Margin' and 'Conf Cost'
+    award_margin_col = None
+    conf_cost_col = None
+    for col in range(1, sheet.max_column + 1):
+        if sheet.cell(row=2, column=col).value == 'Award Margin':
+            award_margin_col = col
+        elif sheet.cell(row=2, column=col).value == 'Conf Cost':
+            conf_cost_col = col
+
+    if award_margin_col:
+        # Apply conditional formatting to highlight Award Margin values below 6% with light red
+        light_red_fill = PatternFill(start_color='FFC7CE', end_color='FFC7CE', fill_type='solid')
+        rule = CellIsRule(operator='lessThan', formula=['0.06'], stopIfTrue=True, fill=light_red_fill)
+        sheet.conditional_formatting.add(
+            f"{get_column_letter(award_margin_col)}3:{get_column_letter(award_margin_col)}{sheet.max_row}", rule)

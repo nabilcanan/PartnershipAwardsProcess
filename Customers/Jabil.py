@@ -119,6 +119,9 @@ def process_and_merge_files(parent_window):
         }
         format_columns(sheet, column_formats)
 
+        # Processing rows here for the final column_formats and making necessary changes for the final output is below,
+        # not adding extra line items in this to make faster processing and ensure final frame is saved correctly
+
         # Ask user for save location and file name
         save_file_path = filedialog.asksaveasfilename(parent=parent_window, defaultextension=".xlsx",
                                                       filetypes=[("Excel files", "*.xlsx")],
@@ -129,8 +132,6 @@ def process_and_merge_files(parent_window):
 
     except Exception as e:
         messagebox.showerror("Error", "An error occurred during processing: " + str(e))
-
-
 
 
 def fill_alternate_rows(sheet, start_row, end_row, color, end_col):
