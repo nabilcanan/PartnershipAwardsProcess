@@ -27,6 +27,7 @@ def open_customer_module(customer_name):
         "Jabil": jabil_logic,
         "Neotech": neotech_logic,
         "Plexus": plexus_logic,
+        "Kimball": kimball_logic,
         # "Kauffman Engineering": kauffman_logic not yet used for any function or logic
     }
 
@@ -64,7 +65,7 @@ def main():
     canvas.create_text(500, 50, text="Partnership Award Validation Process", font=('Roboto', 32), fill=text_color)
 
     # Customers list
-    customers = ["Sanmina", "Neotech", "Jabil", "Plexus", "Benchmark"]
+    customers = ["Sanmina", "Neotech", "Jabil", "Plexus", "Benchmark", "Kimball"]
 
     # Functionality for button hover effect
     def on_enter(tag):

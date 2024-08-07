@@ -73,7 +73,7 @@ def process_and_merge_files(parent_window):
             sheet2 = workbook2['Working Copy']
             new_sheet = workbook.create_sheet('Working Copy')
 
-            # Copying data and style from sheet2 to new_sheet
+            # Copying data and style from sheet2 to new_sheettime in
             for row in sheet2:
                 for cell in row:
                     new_cell = new_sheet.cell(row=cell.row, column=cell.column, value=cell.value)
